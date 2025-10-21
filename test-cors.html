@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test</h1>
+    <button onclick="testHealth()">Test /api/health</button>
+    <button onclick="testHealth2()">Test /health</button>
+    <div id="results"></div>
+
+    <script>
+        async function testHealth() {
+            const results = document.getElementById('results');
+            try {
+                const response = await fetch('http://localhost:5000/api/health');
+                const data = await response.json();
+                results.innerHTML += `<p><strong>/api/health SUCCESS:</strong> ${JSON.stringify(data)}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>/api/health ERROR:</strong> ${error.message}</p>`;
+            }
+        }
+
+        async function testHealth2() {
+            const results = document.getElementById('results');
+            try {
+                const response = await fetch('http://localhost:5000/health');
+                const data = await response.json();
+                results.innerHTML += `<p><strong>/health SUCCESS:</strong> ${JSON.stringify(data)}</p>`;
+            } catch (error) {
+                results.innerHTML += `<p><strong>/health ERROR:</strong> ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
