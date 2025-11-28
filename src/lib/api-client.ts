@@ -371,6 +371,58 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
+  // Two-Factor Authentication (2FA)
+  async startTwoFactorSetup(): Promise<ApiResponse<{ qrCodeDataUrl: string; secret: string; otpauthUrl: string }>> {
+    try {
+      const response = await this.request<ApiResponse<{ qrCodeDataUrl: string; secret: string; otpauthUrl: string }>>(
+        '/safety/two-factor/setup',
+        { method: 'POST' }
+      );
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start two-factor setup',
+      };
+    }
+  }
+
+  async verifyTwoFactor(code: string): Promise<ApiResponse<{ twoFactorAuth: boolean }>> {
+    try {
+      const response = await this.request<ApiResponse<{ twoFactorAuth: boolean }>>(
+        '/safety/two-factor/verify',
+        {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }
+      );
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to verify two-factor code',
+      };
+    }
+  }
+
+  async disableTwoFactor(clearSecret: boolean = false): Promise<ApiResponse<{ twoFactorAuth: boolean }>> {
+    try {
+      const response = await this.request<ApiResponse<{ twoFactorAuth: boolean }>>(
+        '/safety/two-factor/disable',
+        {
+          method: 'POST',
+          body: JSON.stringify({ clearSecret }),
+        }
+      );
+      return response;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to disable two-factor authentication',
+      };
+    }
+  }
+
   // Job-related methods
   async getJobs(filters?: JobSearchFilters): Promise<ApiResponse<Job[]>> {
     try {

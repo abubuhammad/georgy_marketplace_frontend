@@ -102,6 +102,14 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
   });
   const [show2FAForm, setShow2FAForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [twoFASetup, setTwoFASetup] = useState({
+    qrCodeDataUrl: '' as string,
+    secret: '' as string,
+    otpauthUrl: '' as string,
+    code: '' as string,
+    loading: false,
+    error: '' as string,
+  });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -233,32 +241,85 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
   const handleToggle2FA = async () => {
     try {
       if (profileData.security.twoFactorEnabled) {
-        // Disable 2FA
+        // Disable 2FA via backend
+        const result = await apiClient.disableTwoFactor(true);
+        if (!result.success) {
+          toast.error(result.error || 'Failed to disable two-factor authentication');
+          return;
+        }
+
         setProfileData(prev => ({
           ...prev,
-          security: { ...prev.security, twoFactorEnabled: false }
+          security: { ...prev.security, twoFactorEnabled: false },
         }));
         toast.success('Two-Factor Authentication disabled');
       } else {
-        // Enable 2FA
+        // Start 2FA setup via backend
+        setTwoFASetup(prev => ({ ...prev, loading: true, error: '' }));
+        const result = await apiClient.startTwoFactorSetup();
+        if (!result.success || !result.data) {
+          setTwoFASetup(prev => ({ ...prev, loading: false }));
+          toast.error(result.error || 'Failed to start two-factor setup');
+          return;
+        }
+
+        setTwoFASetup({
+          qrCodeDataUrl: result.data.qrCodeDataUrl,
+          secret: result.data.secret,
+          otpauthUrl: result.data.otpauthUrl,
+          code: '',
+          loading: false,
+          error: '',
+        });
         setShow2FAForm(true);
       }
     } catch (error) {
+      console.error('2FA toggle error:', error);
       toast.error('Failed to update two-factor authentication');
+      setTwoFASetup(prev => ({ ...prev, loading: false }));
     }
   };
 
   // Handle 2FA setup confirmation
-  const handleConfirm2FA = () => {
+  const handleConfirm2FA = async () => {
     try {
+      if (!twoFASetup.code || twoFASetup.code.length !== 6) {
+        setTwoFASetup(prev => ({ ...prev, error: 'Please enter the 6-digit code from your authenticator app.' }));
+        return;
+      }
+
+      setTwoFASetup(prev => ({ ...prev, loading: true, error: '' }));
+      const result = await apiClient.verifyTwoFactor(twoFASetup.code);
+      if (!result.success || !result.data?.twoFactorAuth) {
+        setTwoFASetup(prev => ({
+          ...prev,
+          loading: false,
+          error: result.error || 'Invalid verification code. Please try again.',
+        }));
+        return;
+      }
+
       setProfileData(prev => ({
         ...prev,
-        security: { ...prev.security, twoFactorEnabled: true }
+        security: { ...prev.security, twoFactorEnabled: true },
       }));
-      toast.success('Two-Factor Authentication enabled! Click "Save Changes" to save.');
+      toast.success('Two-Factor Authentication enabled!');
       setShow2FAForm(false);
+      setTwoFASetup({
+        qrCodeDataUrl: '',
+        secret: '',
+        otpauthUrl: '',
+        code: '',
+        loading: false,
+        error: '',
+      });
     } catch (error) {
-      toast.error('Failed to enable two-factor authentication');
+      console.error('2FA confirm error:', error);
+      setTwoFASetup(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to enable two-factor authentication. Please try again.',
+      }));
     }
   };
 
@@ -705,31 +766,75 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                         exit={{ opacity: 0, y: -10 }}
                         className="border rounded-lg p-4 bg-blue-50"
                       >
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <div>
                             <h5 className="font-medium mb-2">Set Up Two-Factor Authentication</h5>
-                            <p className="text-sm text-gray-600 mb-3">
-                              Enter the code from your authenticator app:
+                            <p className="text-sm text-gray-600 mb-2">
+                              Step 1: Scan this QR code with Google Authenticator, Authy, or any TOTP-compatible app.
+                            </p>
+                            {twoFASetup.qrCodeDataUrl && (
+                              <div className="flex justify-center mb-3">
+                                <img
+                                  src={twoFASetup.qrCodeDataUrl}
+                                  alt="2FA QR Code"
+                                  className="h-40 w-40 rounded bg-white p-2 shadow"
+                                />
+                              </div>
+                            )}
+                            <p className="text-sm text-gray-600 mb-1">
+                              Step 2: If you can&apos;t scan the QR code, enter this key manually in your app:
+                            </p>
+                            {twoFASetup.secret && (
+                              <div className="font-mono text-sm break-all bg-white/70 rounded px-2 py-1 border inline-block">
+                                {twoFASetup.secret}
+                              </div>
+                            )}
+                            <p className="text-sm text-gray-600 mt-3">
+                              Step 3: Enter the 6-digit code from your authenticator app to verify and enable 2FA.
                             </p>
                           </div>
-                          <Input 
-                            placeholder="000000"
-                            maxLength={6}
-                            className="text-center font-mono text-lg tracking-widest"
-                          />
+                          <div>
+                            <Input
+                              placeholder="000000"
+                              maxLength={6}
+                              value={twoFASetup.code}
+                              onChange={(e) =>
+                                setTwoFASetup(prev => ({
+                                  ...prev,
+                                  code: e.target.value.replace(/[^0-9]/g, '').slice(0, 6),
+                                }))
+                              }
+                              className="text-center font-mono text-lg tracking-widest bg-white"
+                            />
+                            {twoFASetup.error && (
+                              <p className="text-xs text-red-600 mt-1">{twoFASetup.error}</p>
+                            )}
+                          </div>
                           <div className="flex gap-2 justify-end">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setShow2FAForm(false)}
+                              onClick={() => {
+                                setShow2FAForm(false);
+                                setTwoFASetup({
+                                  qrCodeDataUrl: '',
+                                  secret: '',
+                                  otpauthUrl: '',
+                                  code: '',
+                                  loading: false,
+                                  error: '',
+                                });
+                              }}
+                              disabled={twoFASetup.loading}
                             >
                               Cancel
                             </Button>
                             <Button
                               size="sm"
                               onClick={handleConfirm2FA}
+                              disabled={twoFASetup.loading}
                             >
-                              Verify & Enable
+                              {twoFASetup.loading ? 'Verifying...' : 'Verify & Enable'}
                             </Button>
                           </div>
                         </div>
