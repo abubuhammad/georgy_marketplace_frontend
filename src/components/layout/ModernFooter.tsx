@@ -217,12 +217,12 @@ export const ModernFooter: React.FC<ModernFooterProps> = ({ className = "" }) =>
               transition={{ duration: 0.6 }}
             >
               <Link to="/" className="inline-block mb-6">
-                <img 
-                  src="/logo/georgy-logo-white.png" 
-                  alt="Georgy Marketplace" 
+                <img
+                  src="/logo/georgy-logo-white.svg"
+                  alt="Georgy Marketplace"
                   className="h-12 w-auto"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='40' viewBox='0 0 150 40'%3E%3Ctext x='10' y='25' font-family='Arial, sans-serif' font-size='18' font-weight='bold' fill='%23ffffff'%3EGeorgy%3C/text%3E%3C/svg%3E";
+                    (e.target as HTMLImageElement).src = '/logo/georgy-logo-white.png';
                   }}
                 />
               </Link>
