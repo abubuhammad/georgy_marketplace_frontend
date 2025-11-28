@@ -26,7 +26,7 @@ class RealEstateService {
       // Use the proxy URL in development, or construct proper URL in production
       const healthUrl = import.meta.env.DEV 
         ? '/api/health'  // Use proxy in development
-        : `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/health`;
+        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/health`;
       
       const response = await fetch(healthUrl);
       this.useBackend = response.ok;

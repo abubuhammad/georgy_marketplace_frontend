@@ -26,7 +26,7 @@ class ApiClient {
       this.baseURL = '/api';
     } else {
       // In production, use environment variable or fallback
-      this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      this.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
     }
     
     // Load token from localStorage on initialization
