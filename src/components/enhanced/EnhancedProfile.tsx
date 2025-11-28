@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EnhancedDashboardHeader } from './EnhancedDashboardHeader';
@@ -84,11 +84,22 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
+  const [newAddress, setNewAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'Nigeria',
+    type: 'shipping' as const
+  });
   
   const [profileData, setProfileData] = useState<ProfileData>({
     personalInfo: {
@@ -123,6 +134,93 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
       completionRate: 45
     }
   });
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setSaving(true);
+      
+      // Convert to base64 or upload directly
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        
+        // Update local state
+        setProfileData(prev => ({
+          ...prev,
+          personalInfo: { ...prev.personalInfo, avatar: base64 }
+        }));
+        
+        toast.success('Profile image updated! Click "Save Changes" to save.');
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast.error('Failed to update profile image');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle address add/edit
+  const handleAddAddress = () => {
+    if (!newAddress.street || !newAddress.city || !newAddress.state) {
+      toast.error('Please fill in all address fields');
+      return;
+    }
+
+    try {
+      if (editingAddressIndex !== null) {
+        // Update existing address
+        setProfileData(prev => ({
+          ...prev,
+          addresses: prev.addresses.map((addr, idx) =>
+            idx === editingAddressIndex ? newAddress : addr
+          )
+        }));
+        toast.success('Address updated! Click "Save Changes" to save.');
+      } else {
+        // Add new address
+        setProfileData(prev => ({
+          ...prev,
+          addresses: [...prev.addresses, newAddress]
+        }));
+        toast.success('Address added! Click "Save Changes" to save.');
+      }
+      
+      setShowAddressForm(false);
+      setEditingAddressIndex(null);
+      setNewAddress({
+        street: '',
+        city: '',
+        state: '',
+        postalCode: '',
+        country: 'Nigeria',
+        type: 'shipping'
+      });
+    } catch (error) {
+      toast.error('Failed to add address');
+    }
+  };
+
+  // Handle address delete
+  const handleDeleteAddress = (index: number) => {
+    setProfileData(prev => ({
+      ...prev,
+      addresses: prev.addresses.filter((_, idx) => idx !== index)
+    }));
+    toast.success('Address removed! Click "Save Changes" to save.');
+  };
+
+  // Handle address edit
+  const handleEditAddress = (index: number) => {
+    setNewAddress(profileData.addresses[index]);
+    setEditingAddressIndex(index);
+    setShowAddressForm(true);
+  };
 
   const getRoleActions = () => {
     const baseActions = [
@@ -289,11 +387,29 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                     </AvatarFallback>
                   </Avatar>
                   <div className="space-y-2">
-                    <Button variant="outline" size="sm">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <Camera className="w-4 h-4 mr-2" />
                       Change Photo
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setProfileData(prev => ({
+                        ...prev,
+                        personalInfo: { ...prev.personalInfo, avatar: '' }
+                      }))}
+                    >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Remove
                     </Button>
@@ -552,6 +668,99 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
           </TabsContent>
 
           <TabsContent value="addresses" className="space-y-6">
+            {/* Address Form Modal */}
+            <AnimatePresence>
+              {showAddressForm && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>
+                        {editingAddressIndex !== null ? 'Edit Address' : 'Add New Address'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="street">Street Address</Label>
+                          <Input
+                            id="street"
+                            value={newAddress.street}
+                            onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
+                            placeholder="123 Main St"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="city">City</Label>
+                          <Input
+                            id="city"
+                            value={newAddress.city}
+                            onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                            placeholder="Lagos"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="state">State</Label>
+                          <Input
+                            id="state"
+                            value={newAddress.state}
+                            onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
+                            placeholder="Lagos"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="postal">Postal Code</Label>
+                          <Input
+                            id="postal"
+                            value={newAddress.postalCode}
+                            onChange={(e) => setNewAddress({ ...newAddress, postalCode: e.target.value })}
+                            placeholder="100001"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="type">Address Type</Label>
+                        <select
+                          id="type"
+                          value={newAddress.type}
+                          onChange={(e) => setNewAddress({ ...newAddress, type: e.target.value as 'shipping' | 'billing' })}
+                          className="w-full border rounded px-3 py-2"
+                        >
+                          <option value="shipping">Shipping</option>
+                          <option value="billing">Billing</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddressForm(false);
+                            setEditingAddressIndex(null);
+                            setNewAddress({
+                              street: '',
+                              city: '',
+                              state: '',
+                              postalCode: '',
+                              country: 'Nigeria',
+                              type: 'shipping'
+                            });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddAddress}>
+                          {editingAddressIndex !== null ? 'Update Address' : 'Add Address'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -566,7 +775,7 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                     <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No addresses added</h3>
                     <p className="text-gray-500 mb-4">Add your shipping and billing addresses for faster checkout.</p>
-                    <Button>
+                    <Button onClick={() => setShowAddressForm(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Address
                     </Button>
@@ -589,17 +798,29 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                             </p>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditAddress(index)}
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteAddress(index)}
+                            >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
                       </div>
                     ))}
-                    <Button variant="outline" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setShowAddressForm(true)}
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Add New Address
                     </Button>
