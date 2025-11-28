@@ -1,8 +1,15 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-// Create axios instance with base configuration
+// Resolve base URL from environment variables (support both VITE_API_BASE_URL and VITE_API_URL)
+const resolvedBaseUrl = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').toString();
+
+// Ensure a sensible default including `/api` so calls like `/customers/...` resolve correctly
+const defaultBase = resolvedBaseUrl
+  ? resolvedBaseUrl.replace(/\/$/, '')
+  : 'http://localhost:5000';
+
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
+  baseURL: defaultBase.endsWith('/api') ? defaultBase : `${defaultBase}/api`,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
