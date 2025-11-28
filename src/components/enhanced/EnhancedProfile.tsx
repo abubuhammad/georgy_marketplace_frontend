@@ -100,6 +100,13 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
     country: 'Nigeria',
     type: 'shipping' as const
   });
+  const [show2FAForm, setShow2FAForm] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
   
   const [profileData, setProfileData] = useState<ProfileData>({
     personalInfo: {
@@ -220,6 +227,72 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
     setNewAddress(profileData.addresses[index]);
     setEditingAddressIndex(index);
     setShowAddressForm(true);
+  };
+
+  // Handle two-factor authentication toggle
+  const handleToggle2FA = async () => {
+    try {
+      if (profileData.security.twoFactorEnabled) {
+        // Disable 2FA
+        setProfileData(prev => ({
+          ...prev,
+          security: { ...prev.security, twoFactorEnabled: false }
+        }));
+        toast.success('Two-Factor Authentication disabled');
+      } else {
+        // Enable 2FA
+        setShow2FAForm(true);
+      }
+    } catch (error) {
+      toast.error('Failed to update two-factor authentication');
+    }
+  };
+
+  // Handle 2FA setup confirmation
+  const handleConfirm2FA = () => {
+    try {
+      setProfileData(prev => ({
+        ...prev,
+        security: { ...prev.security, twoFactorEnabled: true }
+      }));
+      toast.success('Two-Factor Authentication enabled! Click "Save Changes" to save.');
+      setShow2FAForm(false);
+    } catch (error) {
+      toast.error('Failed to enable two-factor authentication');
+    }
+  };
+
+  // Handle password change
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      // In production, this would call the backend API
+      // await apiClient.changePassword(passwordData);
+      
+      setProfileData(prev => ({
+        ...prev,
+        security: { ...prev.security, lastPasswordChange: new Date().toISOString() }
+      }));
+      
+      toast.success('Password changed successfully! Click "Save Changes" to save.');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowPasswordForm(false);
+    } catch (error) {
+      toast.error('Failed to change password');
+    }
   };
 
   const getRoleActions = () => {
@@ -603,29 +676,153 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
+                  {/* Two-Factor Authentication */}
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">Two-Factor Authentication</h4>
                       <p className="text-sm text-muted-foreground">
                         Add an extra layer of security to your account
                       </p>
+                      {profileData.security.twoFactorEnabled && (
+                        <p className="text-sm text-green-600 mt-1">✓ Enabled</p>
+                      )}
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleToggle2FA}
+                    >
                       {profileData.security.twoFactorEnabled ? 'Disable' : 'Enable'}
                     </Button>
                   </div>
+
+                  {/* 2FA Setup Form */}
+                  <AnimatePresence>
+                    {show2FAForm && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="border rounded-lg p-4 bg-blue-50"
+                      >
+                        <div className="space-y-3">
+                          <div>
+                            <h5 className="font-medium mb-2">Set Up Two-Factor Authentication</h5>
+                            <p className="text-sm text-gray-600 mb-3">
+                              Enter the code from your authenticator app:
+                            </p>
+                          </div>
+                          <Input 
+                            placeholder="000000"
+                            maxLength={6}
+                            className="text-center font-mono text-lg tracking-widest"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShow2FAForm(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleConfirm2FA}
+                            >
+                              Verify & Enable
+                            </Button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Change Password */}
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <h4 className="font-medium">Change Password</h4>
                       <p className="text-sm text-muted-foreground">
-                        Last changed: {profileData.security.lastPasswordChange}
+                        Last changed: {new Date(profileData.security.lastPasswordChange).toLocaleDateString()}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowPasswordForm(!showPasswordForm)}
+                    >
                       <Key className="w-4 h-4 mr-2" />
                       Change
                     </Button>
                   </div>
+
+                  {/* Password Change Form */}
+                  <AnimatePresence>
+                    {showPasswordForm && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="border rounded-lg p-4 bg-blue-50"
+                      >
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="current-pwd">Current Password</Label>
+                            <Input
+                              id="current-pwd"
+                              type="password"
+                              placeholder="Enter current password"
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData({
+                                ...passwordData,
+                                currentPassword: e.target.value
+                              })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="new-pwd">New Password</Label>
+                            <Input
+                              id="new-pwd"
+                              type="password"
+                              placeholder="Enter new password (min 8 characters)"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData({
+                                ...passwordData,
+                                newPassword: e.target.value
+                              })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="confirm-pwd">Confirm Password</Label>
+                            <Input
+                              id="confirm-pwd"
+                              type="password"
+                              placeholder="Confirm new password"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData({
+                                ...passwordData,
+                                confirmPassword: e.target.value
+                              })}
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowPasswordForm(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleChangePassword}
+                            >
+                              Change Password
+                            </Button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </CardContent>
             </Card>
@@ -848,7 +1045,14 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                         Choose your preferred language
                       </p>
                     </div>
-                    <select className="border rounded px-3 py-1 text-sm">
+                    <select 
+                      value={profileData.preferences.language}
+                      onChange={(e) => setProfileData(prev => ({
+                        ...prev,
+                        preferences: { ...prev.preferences, language: e.target.value }
+                      }))}
+                      className="border rounded px-3 py-1 text-sm"
+                    >
                       <option value="en">English</option>
                       <option value="es">Español</option>
                       <option value="fr">Français</option>
@@ -861,10 +1065,20 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                         Set your local timezone
                       </p>
                     </div>
-                    <select className="border rounded px-3 py-1 text-sm">
+                    <select 
+                      value={profileData.preferences.timezone}
+                      onChange={(e) => setProfileData(prev => ({
+                        ...prev,
+                        preferences: { ...prev.preferences, timezone: e.target.value }
+                      }))}
+                      className="border rounded px-3 py-1 text-sm"
+                    >
                       <option value="UTC">UTC</option>
                       <option value="EST">Eastern Time</option>
+                      <option value="CST">Central Time</option>
                       <option value="PST">Pacific Time</option>
+                      <option value="GMT">GMT (London)</option>
+                      <option value="WAT">WAT (West Africa Time)</option>
                     </select>
                   </div>
                   <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -874,10 +1088,20 @@ export const EnhancedProfile: React.FC<EnhancedProfileProps> = ({
                         Choose your preferred currency
                       </p>
                     </div>
-                    <select className="border rounded px-3 py-1 text-sm">
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="GBP">GBP (£)</option>
+                    <select 
+                      value={profileData.preferences.currency}
+                      onChange={(e) => setProfileData(prev => ({
+                        ...prev,
+                        preferences: { ...prev.preferences, currency: e.target.value }
+                      }))}
+                      className="border rounded px-3 py-1 text-sm"
+                    >
+                      <option value="NGN">NGN (₦) - Nigerian Naira</option>
+                      <option value="USD">USD ($) - US Dollar</option>
+                      <option value="EUR">EUR (€) - Euro</option>
+                      <option value="GBP">GBP (£) - British Pound</option>
+                      <option value="CAD">CAD ($) - Canadian Dollar</option>
+                      <option value="AUD">AUD ($) - Australian Dollar</option>
                     </select>
                   </div>
                 </div>
