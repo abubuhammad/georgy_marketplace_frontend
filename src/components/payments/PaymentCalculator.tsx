@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Calculator, 
-  DollarSign, 
   Percent, 
   Receipt, 
   Info, 
@@ -11,7 +10,6 @@ import {
   Smartphone,
   Building,
   AlertCircle,
-  CheckCircle,
   Loader2
 } from 'lucide-react';
 import { paymentApiService } from '@/services/paymentService-api';
@@ -48,28 +46,6 @@ interface PaymentMethod {
   max_fee?: number;
   processing_time: string;
   available_currencies: string[];
-}
-
-interface PaymentBreakdown {
-  subtotal: number;
-  taxes: Array<{
-    name: string;
-    rate: number;
-    amount: number;
-    type: string;
-  }>;
-  fees: Array<{
-    name: string;
-    amount: number;
-    type: 'platform' | 'payment' | 'processing';
-  }>;
-  discounts: Array<{
-    name: string;
-    amount: number;
-    type: 'percentage' | 'fixed';
-  }>;
-  total: number;
-  currency: string;
 }
 
 interface PaymentCalculatorProps {
@@ -166,24 +142,10 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   }
 ];
 
-const PLATFORM_FEES = {
-  standard: 2.5, // 2.5% platform fee
-  premium: 1.5,  // 1.5% for premium sellers
-  enterprise: 1.0 // 1.0% for enterprise accounts
-};
-
-const CURRENCY_SYMBOLS = {
-  NGN: '₦',
-  USD: '$',
-  EUR: '€',
-  GBP: '£'
-};
-
 export function PaymentCalculator({
   amount,
   currency = 'NGN',
   category = 'products',
-  location = 'Nigeria',
   sellerId,
   userType,
   escrow = false,
@@ -197,7 +159,7 @@ export function PaymentCalculator({
   const [includeTaxes, setIncludeTaxes] = useState(true);
   const [couponCode, setCouponCode] = useState('');
 
-  const currencySymbol = '₦'; // For NGN
+  const currencySymbol = '₦';
 
   // Load payment configuration
   useEffect(() => {
@@ -208,7 +170,6 @@ export function PaymentCalculator({
         setConfig(paymentConfig);
       } catch (error) {
         console.error('Failed to load payment config:', error);
-        // Fallback to basic config
         setConfig({
           taxRules: [],
           revenueShares: [],
@@ -216,7 +177,7 @@ export function PaymentCalculator({
             { method: 'CARD', name: 'Card', description: 'Pay with card', enabled: true, fees: { percentage: 1.5 }, limits: { min: 100, max: 5000000, currency: 'NGN' } }
           ],
           currencies: [{ code: 'NGN', name: 'Nigerian Naira', symbol: '₦', decimals: 2, enabled: true }]
-        } as any);
+        } as PaymentConfig);
       } finally {
         setLoading(false);
       }
@@ -243,7 +204,6 @@ export function PaymentCalculator({
         onCalculationChange?.(result.breakdown);
       } catch (error) {
         console.error('Failed to calculate breakdown:', error);
-        // Fallback calculation
         const fallbackBreakdown: APIPaymentBreakdown = {
           subtotal: amount,
           taxes: [],
@@ -263,8 +223,17 @@ export function PaymentCalculator({
     calculateBreakdown();
   }, [amount, currency, sellerId, category, userType, escrow, config, onCalculationChange]);
 
-  // Get payment method from config
   const paymentMethod = config?.paymentMethods.find(pm => pm.method === selectedPaymentMethod);
+
+  const getPaymentMethodIcon = (type: string) => {
+    switch (type) {
+      case 'card': return CreditCard;
+      case 'bank_transfer': return Building;
+      case 'mobile_money': return Smartphone;
+      case 'cash': return Banknote;
+      default: return CreditCard;
+    }
+  };
 
   if (loading) {
     return (
@@ -298,122 +267,6 @@ export function PaymentCalculator({
       </Card>
     );
   }
-
-    // Calculate applicable taxes
-    if (includeTaxes) {
-      TAX_RULES.forEach(rule => {
-        if (!rule.applies_to.includes(category)) return;
-        if (rule.threshold && amount < rule.threshold) return;
-
-        let taxAmount = 0;
-        if (rule.type === 'percentage') {
-          taxAmount = (amount * rule.rate) / 100;
-        } else if (rule.type === 'fixed') {
-          taxAmount = rule.rate;
-        }
-
-        if (taxAmount > 0) {
-          result.taxes.push({
-            name: rule.name,
-            rate: rule.rate,
-            amount: taxAmount,
-            type: rule.type
-          });
-        }
-      });
-    }
-
-    // Platform fee
-    const platformFeeRate = PLATFORM_FEES[sellerTier];
-    const platformFee = (amount * platformFeeRate) / 100;
-    result.fees.push({
-      name: `Platform Fee (${sellerTier})`,
-      amount: platformFee,
-      type: 'platform'
-    });
-
-    // Payment processing fee
-    if (paymentMethod) {
-      let processingFee = (amount * paymentMethod.fee_percentage) / 100 + paymentMethod.fee_fixed;
-      
-      if (paymentMethod.min_fee && processingFee < paymentMethod.min_fee) {
-        processingFee = paymentMethod.min_fee;
-      }
-      if (paymentMethod.max_fee && processingFee > paymentMethod.max_fee) {
-        processingFee = paymentMethod.max_fee;
-      }
-
-      result.fees.push({
-        name: `${paymentMethod.name} Fee`,
-        amount: processingFee,
-        type: 'payment'
-      });
-    }
-
-    // Insurance fee (optional)
-    if (includeInsurance) {
-      const insuranceFee = Math.max((amount * 0.5) / 100, 100); // 0.5% min ₦100
-      result.fees.push({
-        name: 'Transaction Insurance',
-        amount: insuranceFee,
-        type: 'processing'
-      });
-    }
-
-    // Apply coupon discount
-    if (appliedCoupon) {
-      let discountAmount = 0;
-      if (appliedCoupon.type === 'percentage') {
-        discountAmount = (amount * appliedCoupon.discount) / 100;
-      } else {
-        discountAmount = appliedCoupon.discount;
-      }
-
-      result.discounts.push({
-        name: `Coupon: ${appliedCoupon.code}`,
-        amount: discountAmount,
-        type: appliedCoupon.type
-      });
-    }
-
-    // Calculate total
-    const totalTaxes = result.taxes.reduce((sum, tax) => sum + tax.amount, 0);
-    const totalFees = result.fees.reduce((sum, fee) => sum + fee.amount, 0);
-    const totalDiscounts = result.discounts.reduce((sum, discount) => sum + discount.amount, 0);
-
-    result.total = amount + totalTaxes + totalFees - totalDiscounts;
-
-    return result;
-  }, [amount, currency, category, includeTaxes, includeInsurance, selectedPaymentMethod, sellerTier, appliedCoupon]);
-
-  useEffect(() => {
-    onCalculationChange?.(breakdown);
-  }, [breakdown, onCalculationChange]);
-
-  const applyCoupon = () => {
-    // Mock coupon validation
-    const mockCoupons = {
-      'SAVE10': { discount: 10, type: 'percentage' as const },
-      'FLAT500': { discount: 500, type: 'fixed' as const },
-      'WELCOME': { discount: 5, type: 'percentage' as const }
-    };
-
-    const coupon = mockCoupons[couponCode as keyof typeof mockCoupons];
-    if (coupon) {
-      setAppliedCoupon({ code: couponCode, ...coupon });
-      setCouponCode('');
-    }
-  };
-
-  const getPaymentMethodIcon = (type: string) => {
-    switch (type) {
-      case 'card': return CreditCard;
-      case 'bank_transfer': return Building;
-      case 'mobile_money': return Smartphone;
-      case 'cash': return Banknote;
-      default: return CreditCard;
-    }
-  };
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -459,23 +312,9 @@ export function PaymentCalculator({
                   </Select>
                   {paymentMethod && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Processing time: {paymentMethod.processing_time}
+                      Processing time: {paymentMethod.processingTime || 'Instant'}
                     </p>
                   )}
-                </div>
-
-                <div>
-                  <Label>Seller Tier</Label>
-                  <Select value={sellerTier} onValueChange={(value: any) => setSellerTier(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard ({PLATFORM_FEES.standard}%)</SelectItem>
-                      <SelectItem value="premium">Premium ({PLATFORM_FEES.premium}%)</SelectItem>
-                      <SelectItem value="enterprise">Enterprise ({PLATFORM_FEES.enterprise}%)</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -483,14 +322,6 @@ export function PaymentCalculator({
                   <Label>Include Taxes</Label>
                   <Badge variant="outline" className="ml-2">
                     {breakdown.taxes.length} applicable
-                  </Badge>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch checked={includeInsurance} onCheckedChange={setIncludeInsurance} />
-                  <Label>Transaction Insurance</Label>
-                  <Badge variant="outline" className="ml-2">
-                    0.5% min ₦100
                   </Badge>
                 </div>
               </div>
@@ -506,28 +337,13 @@ export function PaymentCalculator({
                     className="flex-1"
                   />
                   <Button 
-                    onClick={applyCoupon}
+                    onClick={() => setCouponCode('')}
                     disabled={!couponCode}
                     variant="outline"
                   >
                     Apply
                   </Button>
                 </div>
-                {appliedCoupon && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span className="text-sm text-green-600">
-                      Coupon "{appliedCoupon.code}" applied successfully
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setAppliedCoupon(null)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                )}
               </div>
 
               {/* Payment Summary */}
@@ -555,13 +371,6 @@ export function PaymentCalculator({
                     </div>
                   ))}
 
-                  {breakdown.discounts.map((discount, index) => (
-                    <div key={index} className="flex justify-between text-sm text-green-600">
-                      <span>{discount.name}:</span>
-                      <span>-{currencySymbol}{discount.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
-
                   <Separator />
                   
                   <div className="flex justify-between text-lg font-bold">
@@ -569,12 +378,14 @@ export function PaymentCalculator({
                     <span className="text-red-600">{currencySymbol}{breakdown.total.toFixed(2)}</span>
                   </div>
 
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>You save:</span>
-                    <span className="text-green-600">
-                      {currencySymbol}{breakdown.discounts.reduce((sum, d) => sum + d.amount, 0).toFixed(2)}
-                    </span>
-                  </div>
+                  {breakdown.discount > 0 && (
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>You save:</span>
+                      <span className="text-green-600">
+                        {currencySymbol}{breakdown.discount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
