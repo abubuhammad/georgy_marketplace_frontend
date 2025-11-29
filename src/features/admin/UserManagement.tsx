@@ -98,19 +98,31 @@ const UserManagement: React.FC = () => {
         params.append('search', searchTerm);
       }
 
-      const response = await apiClient.get<ApiResponse<UsersResponse>>(`/admin/users?${params.toString()}`);
+      const response = await apiClient.get<UsersResponse | ApiResponse<UsersResponse>>(`/admin/users?${params.toString()}`);
       
-      if (response.success && response.data) {
-        setUsers(response.data.users || []);
-        setPagination(prev => ({
-          ...prev,
-          total: response.data?.pagination?.total || 0,
-          pages: response.data?.pagination?.pages || 0
-        }));
-        console.log('✅ Loaded users from API:', response.data.users?.length || 0);
+      // Handle both response formats: { users, pagination } or { success, data: { users, pagination } }
+      let usersData: User[] = [];
+      let paginationData = { total: 0, pages: 0 };
+      
+      if ('success' in response && response.data) {
+        // Wrapped format: { success: true, data: { users, pagination } }
+        usersData = response.data.users || [];
+        paginationData = response.data.pagination || { total: 0, pages: 0 };
+      } else if ('users' in response) {
+        // Direct format: { users, pagination }
+        usersData = response.users || [];
+        paginationData = response.pagination || { total: 0, pages: 0 };
       } else {
-        throw new Error(response.error || 'Failed to fetch users');
+        throw new Error('Invalid response format');
       }
+      
+      setUsers(usersData);
+      setPagination(prev => ({
+        ...prev,
+        total: paginationData.total || 0,
+        pages: paginationData.pages || 0
+      }));
+      console.log('✅ Loaded users from API:', usersData.length);
     } catch (err) {
       console.error('Error loading users:', err);
       setError('Failed to load users. Please try again.');
