@@ -47,6 +47,12 @@ import {
   DataProtectionCenter, 
   LegalComplianceDashboard 
 } from '@/features/legal';
+import { 
+  UserManagement as AdminUserManagement,
+  CustomerManagement as AdminCustomerManagement,
+  ContentModeration as AdminContentModeration,
+  Analytics as AdminAnalytics
+} from '@/features/admin';
 import { RealEstateDashboard, PropertyManagement } from '@/features/realtor';
 import { DeliveryAgentRegistration } from '@/components/delivery/DeliveryAgentRegistration';
 import { DeliveryAgencyDashboard } from '@/components/delivery/DeliveryAgencyDashboard';
@@ -97,6 +103,10 @@ function App() {
                 {/* Admin Dashboard */}
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/reports" element={<AdminReports />} />
+                <Route path="/admin/users" element={<AdminUserManagement />} />
+                <Route path="/admin/customers" element={<AdminCustomerManagement />} />
+                <Route path="/admin/content-moderation" element={<AdminContentModeration />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
                 
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/product/:id" element={<ProductDetailPage />} />

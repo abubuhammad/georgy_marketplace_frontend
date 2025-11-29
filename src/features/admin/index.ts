@@ -5,4 +5,4 @@ export { default as CustomerManagement } from './CustomerManagement';
 export { default as ContentModeration } from './ContentModeration';
 export { default as Analytics } from './Analytics';
 export { default as RevenueSharing } from './RevenueSharing';
-export * from './types';
+export { default as AdminProfile } from './AdminProfile';
