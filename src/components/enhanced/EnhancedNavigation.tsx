@@ -55,13 +55,14 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [notifications] = useState(3); // Mock notification count
   const [messages] = useState(2); // Mock message count
+  // Reduced sparkle count for better performance
   const [sparklePositions] = useState(() => 
-    Array.from({ length: 15 }, (_, i) => ({
+    Array.from({ length: 5 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
       delay: Math.random() * 2,
-      duration: 2 + Math.random() * 2
+      duration: 3 + Math.random() * 2
     }))
   );
 

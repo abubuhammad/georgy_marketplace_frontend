@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense, memo, useCallback, useMemo } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, MapPin, Star, Heart, ShoppingCart, Briefcase, Home as HomeIcon, Car, Smartphone, Shirt, Building, ArrowRight, Users, ShieldCheck, Package, TrendingUp, Activity, Book, Baby, Key, Crown } from 'lucide-react';
@@ -43,14 +43,8 @@ const EnhancedHomePage: React.FC = () => {
       return;
     }
     loadData();
-  }, [currentPlatform, navigate, location.pathname]);
-
-  // Force refresh on location change (browser back/forward)
-  useEffect(() => {
-    if (currentPlatform !== 'artisan') {
-      loadData();
-    }
-  }, [location.key]); // location.key changes on navigation
+    // Only reload on platform change, not on every location change
+  }, [currentPlatform]);
 
   const loadData = async () => {
     setLoading(true);
@@ -141,22 +135,20 @@ const EnhancedHomePage: React.FC = () => {
     'baby-kids': <Baby className="w-6 h-6" />,
   };
 
-  const SectionWrapper = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+  // Memoized section wrapper with reduced animation for better performance
+  const SectionWrapper = memo(({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
     const ref = React.useRef(null);
-    const isInView = useInView(ref, { once: true, amount: 0.1 });
+    const isInView = useInView(ref, { once: true, amount: 0.05 });
 
     return (
-      <motion.section
+      <section
         ref={ref}
-        initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className={className}
+        className={`transition-opacity duration-300 ${isInView ? 'opacity-100' : 'opacity-0'} ${className}`}
       >
         {children}
-      </motion.section>
+      </section>
     );
-  };
+  });
 
   // Don't render if we're redirecting to artisan connect
   if (currentPlatform === 'artisan') {
@@ -310,206 +302,95 @@ const EnhancedHomePage: React.FC = () => {
         </div>
       </SectionWrapper>
 
-      {/* Enhanced Dazzling Categories Section */}
-      <SectionWrapper className="py-20 bg-gradient-to-br from-indigo-50 via-white to-purple-50 relative overflow-hidden">
-        {/* Background Decorative Elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-10 left-10 w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full blur-xl animate-pulse" />
-          <div className="absolute top-32 right-20 w-16 h-16 bg-gradient-to-br from-pink-400 to-red-500 rounded-full blur-lg animate-bounce" />
-          <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-gradient-to-br from-green-400 to-blue-500 rounded-full blur-2xl animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-18 h-18 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full blur-xl animate-ping" />
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
-          >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              whileInView={{ scale: 1 }}
-              transition={{ duration: 0.8, type: "spring", bounce: 0.3 }}
-            >
-              <h2 className="text-5xl font-bold mb-6 bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 bg-clip-text text-transparent">
-                Explore Amazing Categories
-              </h2>
-              <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Discover thousands of products and properties across our diverse marketplace
-              </p>
-              <div className="flex justify-center space-x-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <div className="w-2 h-2 bg-teal-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-              </div>
-            </motion.div>
-          </motion.div>
+      {/* Categories Section - Optimized */}
+      <SectionWrapper className="py-16 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600 bg-clip-text text-transparent">
+              Explore Categories
+            </h2>
+            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+              Discover thousands of products and properties across our marketplace
+            </p>
+          </div>
           
           {loading ? (
             <CategorySkeletonGrid />
           ) : (
             <>
               {/* Product Categories Section */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="mb-16"
-              >
-                <div className="flex items-center justify-center mb-10">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" />
-                    <h3 className="text-2xl font-bold text-gray-800">Product Categories</h3>
-                    <div className="w-8 h-1 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full" />
-                  </div>
-                </div>
+              <div className="mb-12">
+                <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Product Categories</h3>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
                   {[
-                    { id: '1', name: 'Electronics', slug: 'electronics', icon: 'Smartphone', color: 'from-blue-500 to-purple-600' },
-                    { id: '2', name: 'Fashion', slug: 'fashion', icon: 'Shirt', color: 'from-pink-500 to-rose-600' },
-                    { id: '3', name: 'Home & Garden', slug: 'home-garden', icon: 'HomeIcon', color: 'from-green-500 to-emerald-600' },
-                    { id: '4', name: 'Vehicles', slug: 'vehicles', icon: 'Car', color: 'from-orange-500 to-red-600' },
-                    { id: '5', name: 'Sports', slug: 'sports', icon: 'Activity', color: 'from-teal-500 to-cyan-600' },
-                    { id: '6', name: 'Books', slug: 'books', icon: 'Book', color: 'from-amber-500 to-yellow-600' },
-                    { id: '7', name: 'Health & Beauty', slug: 'health-beauty', icon: 'Heart', color: 'from-purple-500 to-indigo-600' },
-                    { id: '8', name: 'Baby & Kids', slug: 'baby-kids', icon: 'Baby', color: 'from-rose-400 to-pink-500' }
-                  ].map((category, index) => (
-                    <motion.div
+                    { id: '1', name: 'Electronics', slug: 'electronics', color: 'from-blue-500 to-purple-600' },
+                    { id: '2', name: 'Fashion', slug: 'fashion', color: 'from-pink-500 to-rose-600' },
+                    { id: '3', name: 'Home & Garden', slug: 'home-garden', color: 'from-green-500 to-emerald-600' },
+                    { id: '4', name: 'Vehicles', slug: 'vehicles', color: 'from-orange-500 to-red-600' },
+                    { id: '5', name: 'Sports', slug: 'sports', color: 'from-teal-500 to-cyan-600' },
+                    { id: '6', name: 'Books', slug: 'books', color: 'from-amber-500 to-yellow-600' },
+                    { id: '7', name: 'Health & Beauty', slug: 'health-beauty', color: 'from-purple-500 to-indigo-600' },
+                    { id: '8', name: 'Baby & Kids', slug: 'baby-kids', color: 'from-rose-400 to-pink-500' }
+                  ].map((category) => (
+                    <Card 
                       key={category.id}
-                      initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-                      whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                      transition={{ 
-                        duration: 0.6, 
-                        delay: index * 0.1,
-                        type: "spring",
-                        bounce: 0.4
-                      }}
-                      whileHover={{ 
-                        scale: 1.05, 
-                        y: -10,
-                        transition: { duration: 0.2 }
-                      }}
-                      whileTap={{ scale: 0.95 }}
+                      className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
+                      onClick={() => navigate(`/products?category=${category.id}`)}
                     >
-                      <Card 
-                        className="relative overflow-hidden cursor-pointer group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-sm"
-                        onClick={() => navigate(`/products?category=${category.id}`)}
-                      >
-                        {/* Gradient Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
-                        
-                        {/* Shimmer Effect */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 ease-out" />
-                        
-                        <CardContent className="p-6 text-center relative z-10">
-                          <motion.div 
-                            className="mb-4 flex justify-center"
-                            whileHover={{ 
-                              scale: 1.2, 
-                              rotate: [0, -10, 10, -5, 0],
-                              transition: { duration: 0.5 }
-                            }}
-                          >
-                            <div className={`w-16 h-16 bg-gradient-to-br ${category.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300`}>
-                              {categoryIcons[category.slug as keyof typeof categoryIcons] ? 
-                                React.cloneElement(categoryIcons[category.slug as keyof typeof categoryIcons], { 
-                                  className: "w-8 h-8 text-white drop-shadow-lg" 
-                                }) : 
-                                <HomeIcon className="w-8 h-8 text-white drop-shadow-lg" />
-                              }
-                            </div>
-                          </motion.div>
-                          <h3 className="font-bold text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300">
-                            {category.name}
-                          </h3>
-                          <div className={`w-0 h-0.5 bg-gradient-to-r ${category.color} mx-auto mt-2 group-hover:w-full transition-all duration-300`} />
-                        </CardContent>
-                      </Card>
-                    </motion.div>
+                      <CardContent className="p-4 text-center">
+                        <div className="mb-3 flex justify-center">
+                          <div className={`w-12 h-12 bg-gradient-to-br ${category.color} rounded-xl flex items-center justify-center shadow`}>
+                            {categoryIcons[category.slug as keyof typeof categoryIcons] ? 
+                              React.cloneElement(categoryIcons[category.slug as keyof typeof categoryIcons], { 
+                                className: "w-6 h-6 text-white" 
+                              }) : 
+                              <HomeIcon className="w-6 h-6 text-white" />
+                            }
+                          </div>
+                        </div>
+                        <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </motion.div>
+              </div>
               
               {/* Property Categories Section */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <div className="flex items-center justify-center mb-10">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" />
-                    <h3 className="text-2xl font-bold text-gray-800">Property Categories</h3>
-                    <div className="w-8 h-1 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full" />
-                  </div>
-                </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Property Categories</h3>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   {[
-                    { id: 'residential', name: 'Residential', slug: 'residential', icon: 'HomeIcon', color: 'from-emerald-500 to-teal-600' },
-                    { id: 'commercial', name: 'Commercial', slug: 'commercial', icon: 'Building', color: 'from-blue-500 to-indigo-600' },
-                    { id: 'land', name: 'Land & Plots', slug: 'land', icon: 'MapPin', color: 'from-green-500 to-emerald-600' },
-                    { id: 'rentals', name: 'Rentals', slug: 'rentals', icon: 'Key', color: 'from-purple-500 to-violet-600' },
-                    { id: 'luxury', name: 'Luxury Homes', slug: 'luxury', icon: 'Crown', color: 'from-yellow-500 to-amber-600' },
-                    { id: 'investment', name: 'Investment', slug: 'investment', icon: 'TrendingUp', color: 'from-cyan-500 to-blue-600' }
-                  ].map((category, index) => (
-                    <motion.div
+                    { id: 'residential', name: 'Residential', slug: 'residential', color: 'from-emerald-500 to-teal-600' },
+                    { id: 'commercial', name: 'Commercial', slug: 'commercial', color: 'from-blue-500 to-indigo-600' },
+                    { id: 'land', name: 'Land & Plots', slug: 'land', color: 'from-green-500 to-emerald-600' },
+                    { id: 'rentals', name: 'Rentals', slug: 'rentals', color: 'from-purple-500 to-violet-600' },
+                    { id: 'luxury', name: 'Luxury Homes', slug: 'luxury', color: 'from-yellow-500 to-amber-600' },
+                    { id: 'investment', name: 'Investment', slug: 'investment', color: 'from-cyan-500 to-blue-600' }
+                  ].map((category) => (
+                    <Card 
                       key={category.id}
-                      initial={{ opacity: 0, scale: 0.8, rotate: 10 }}
-                      whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-                      transition={{ 
-                        duration: 0.6, 
-                        delay: index * 0.1,
-                        type: "spring",
-                        bounce: 0.4
-                      }}
-                      whileHover={{ 
-                        scale: 1.05, 
-                        y: -10,
-                        transition: { duration: 0.2 }
-                      }}
-                      whileTap={{ scale: 0.95 }}
+                      className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
+                      onClick={() => navigate(`/properties?category=${category.id}`)}
                     >
-                      <Card 
-                        className="relative overflow-hidden cursor-pointer group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-sm"
-                        onClick={() => navigate(`/properties?category=${category.id}`)}
-                      >
-                        {/* Gradient Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
-                        
-                        {/* Shimmer Effect */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 ease-out" />
-                        
-                        <CardContent className="p-6 text-center relative z-10">
-                          <motion.div 
-                            className="mb-4 flex justify-center"
-                            whileHover={{ 
-                              scale: 1.2, 
-                              rotate: [0, 10, -10, 5, 0],
-                              transition: { duration: 0.5 }
-                            }}
-                          >
-                            <div className={`w-16 h-16 bg-gradient-to-br ${category.color} rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300`}>
-                              {category.slug === 'residential' && <HomeIcon className="w-8 h-8 text-white drop-shadow-lg" />}
-                              {category.slug === 'commercial' && <Building className="w-8 h-8 text-white drop-shadow-lg" />}
-                              {category.slug === 'land' && <MapPin className="w-8 h-8 text-white drop-shadow-lg" />}
-                              {category.slug === 'rentals' && <HomeIcon className="w-8 h-8 text-white drop-shadow-lg" />}
-                              {category.slug === 'luxury' && <Star className="w-8 h-8 text-white drop-shadow-lg" />}
-                              {category.slug === 'investment' && <TrendingUp className="w-8 h-8 text-white drop-shadow-lg" />}
-                            </div>
-                          </motion.div>
-                          <h3 className="font-bold text-sm text-gray-800 group-hover:text-gray-900 transition-colors duration-300">
-                            {category.name}
-                          </h3>
-                          <div className={`w-0 h-0.5 bg-gradient-to-r ${category.color} mx-auto mt-2 group-hover:w-full transition-all duration-300`} />
-                        </CardContent>
-                      </Card>
-                    </motion.div>
+                      <CardContent className="p-4 text-center">
+                        <div className="mb-3 flex justify-center">
+                          <div className={`w-12 h-12 bg-gradient-to-br ${category.color} rounded-xl flex items-center justify-center shadow`}>
+                            {category.slug === 'residential' && <HomeIcon className="w-6 h-6 text-white" />}
+                            {category.slug === 'commercial' && <Building className="w-6 h-6 text-white" />}
+                            {category.slug === 'land' && <MapPin className="w-6 h-6 text-white" />}
+                            {category.slug === 'rentals' && <HomeIcon className="w-6 h-6 text-white" />}
+                            {category.slug === 'luxury' && <Star className="w-6 h-6 text-white" />}
+                            {category.slug === 'investment' && <TrendingUp className="w-6 h-6 text-white" />}
+                          </div>
+                        </div>
+                        <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </motion.div>
+              </div>
             </>
           )}
         </div>

@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   getHeroImageConfig, 
-  getImageWithFallback,
   getColorClasses,
   getGradientClass
 } from '../utils/heroImageUtils';
@@ -19,33 +18,15 @@ export interface UseHeroImageReturn {
 
 /**
  * Hook to manage hero images and configuration based on section
+ * Optimized: Direct image URL without async check for faster loading
  */
 export const useHeroImage = (section: SectionType = DEFAULT_SECTION): UseHeroImageReturn => {
-  const [imageSrc, setImageSrc] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const config = getHeroImageConfig(section);
-  const colorClasses = getColorClasses(section);
-  const gradientClass = getGradientClass(section);
-
-  useEffect(() => {
-    const loadImage = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const imageUrl = await getImageWithFallback(section);
-        setImageSrc(imageUrl);
-      } catch (err) {
-        setError('Failed to load hero image');
-        console.error('Hero image loading error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadImage();
-  }, [section]);
+  const config = useMemo(() => getHeroImageConfig(section), [section]);
+  const colorClasses = useMemo(() => getColorClasses(section), [section]);
+  const gradientClass = useMemo(() => getGradientClass(section), [section]);
+  
+  // Use image directly without async check - faster initial load
+  const imageSrc = config.image;
 
   return {
     section,
@@ -53,8 +34,8 @@ export const useHeroImage = (section: SectionType = DEFAULT_SECTION): UseHeroIma
     imageSrc,
     colorClasses,
     gradientClass,
-    isLoading,
-    error
+    isLoading: false,
+    error: null
   };
 };
 
