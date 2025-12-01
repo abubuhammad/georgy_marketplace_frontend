@@ -288,17 +288,31 @@ class ProductService {
 
     if (ProductService.useBackend) {
       try {
-        // Convert File objects to URLs - in a real app you'd upload to a file service
-        // For now, generate placeholder URLs based on file names
+        // Upload images to Cloudinary first if there are File objects
+        let imageUrls: string[] = [];
+        
+        const fileImages = productData.images.filter((img): img is File => img instanceof File);
+        const stringImages = productData.images.filter((img): img is string => typeof img === 'string');
+        
+        if (fileImages.length > 0) {
+          console.log('📸 Uploading images to Cloudinary...');
+          const { uploadService } = await import('./uploadService');
+          const uploadResult = await uploadService.uploadMultiple(fileImages, 'products');
+          
+          if (uploadResult.error || !uploadResult.data) {
+            return { data: null, error: uploadResult.error || 'Failed to upload images' };
+          }
+          
+          imageUrls = uploadResult.data.map(img => img.url);
+          console.log('✅ Images uploaded:', imageUrls);
+        }
+        
+        // Combine uploaded URLs with any existing string URLs
+        const allImageUrls = [...imageUrls, ...stringImages];
+        
         const productDataWithImageUrls = {
           ...productData,
-          images: productData.images.map((file, index) => {
-            if (file instanceof File) {
-              // Generate a realistic image URL for demo purposes
-              return `/api/placeholder/400/300?id=${Date.now()}_${index}`;
-            }
-            return file;
-          }) as string[]
+          images: allImageUrls
         };
         
         // Use apiClient to ensure correct baseURL is used
