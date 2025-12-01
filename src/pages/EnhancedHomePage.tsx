@@ -96,31 +96,58 @@ const EnhancedHomePage: React.FC = () => {
         if (!p) return p;
         const name = p.name || p.title || p.productName || '';
         const title = p.title || name;
-        const imagesArray = Array.isArray(p.images) ? p.images : (Array.isArray(p.productImages) ? p.productImages : []);
-        // Normalize to [{image_url: string}]
-        const images = imagesArray.map((img: any) =>
-          typeof img === 'string' ? { image_url: img } : { image_url: img.image_url || img.imageUrl || img.url || img.src || '' }
-        );
+        
+        // Get images array - could be string[], {image_url}[], or JSON string
+        let imagesArray: string[] = [];
+        if (typeof p.images === 'string') {
+          try {
+            imagesArray = JSON.parse(p.images);
+          } catch {
+            imagesArray = p.images ? [p.images] : [];
+          }
+        } else if (Array.isArray(p.images)) {
+          // Handle both string[] and {image_url}[] formats
+          imagesArray = p.images.map((img: any) => 
+            typeof img === 'string' ? img : (img.image_url || img.imageUrl || img.url || img.src || '')
+          );
+        } else if (Array.isArray(p.productImages)) {
+          imagesArray = p.productImages.map((img: any) => 
+            typeof img === 'string' ? img : (img.image_url || img.imageUrl || img.url || img.src || '')
+          );
+        }
+        
+        // Filter out empty strings
+        imagesArray = imagesArray.filter((url: string) => url && url.length > 0);
+        
         return {
           ...p,
           name,
           title,
-          images,
+          images: imagesArray, // Keep as string[] for ProductCard compatibility
           price: Number(p.price || p.unitPrice || 0),
           rating: p.rating ?? 0,
           reviewCount: p.reviewCount ?? p.reviewsCount ?? 0,
-          location_city: p.location_city || p.city || p.seller?.businessAddress?.city || '',
-          location_state: p.location_state || p.state || p.seller?.businessAddress?.state || '',
+          stockQuantity: p.stockQuantity ?? 0,
+          inStock: p.inStock ?? (p.stockQuantity > 0),
+          location_city: p.location_city || p.locationCity || p.city || p.seller?.businessAddress?.city || '',
+          location_state: p.location_state || p.locationState || p.state || p.seller?.businessAddress?.state || '',
           condition: p.condition || 'new',
         };
       };
 
       if (currentPlatform === 'ecommerce') {
+        // Fetch featured products (limit 8)
         const featuredData = await productService.getFeaturedProducts(8);
+        console.log('Featured products response:', featuredData);
         if (featuredData && Array.isArray((featuredData as any).data)) {
           setFeaturedProducts(((featuredData as any).data as any[]).map(normalizeProduct));
+        } else if (Array.isArray(featuredData)) {
+          setFeaturedProducts((featuredData as any[]).map(normalizeProduct));
         }
-        const recentData = await productService.getProducts({}, 1, 12);
+        
+        // Fetch recent/current listings (limit 20)
+        const recentData = await productService.getProducts({}, 1, 20);
+        console.log('Recent products response:', recentData);
         const items = Array.isArray(recentData?.data?.data)
           ? recentData.data.data
           : Array.isArray((recentData as any)?.data)
