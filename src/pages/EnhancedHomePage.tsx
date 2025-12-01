@@ -10,7 +10,7 @@ import { UserDropdown } from '@/components/ui/user-dropdown';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import categoryService from '@/services/categoryService';
+import categoryApiService, { Category as ApiCategory } from '@/services/categoryApiService';
 import productService from '@/services/productService';
 import { propertyService, Property } from '@/services/propertyService';
 import { Category, Product } from '@/types';
@@ -21,6 +21,27 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import JobService from '@/services/jobService';
 import type { Job } from '@/features/job/types';
 
+// Default categories as fallback when API is unavailable
+const defaultProductCategories: ApiCategory[] = [
+  { id: '1', name: 'Electronics', slug: 'electronics', metadata: { icon: 'Smartphone', color: 'from-blue-500 to-purple-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '2', name: 'Fashion', slug: 'fashion', metadata: { icon: 'Shirt', color: 'from-pink-500 to-rose-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '3', name: 'Home & Garden', slug: 'home-garden', metadata: { icon: 'Home', color: 'from-green-500 to-emerald-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '4', name: 'Vehicles', slug: 'vehicles', metadata: { icon: 'Car', color: 'from-orange-500 to-red-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '5', name: 'Sports', slug: 'sports', metadata: { icon: 'Activity', color: 'from-teal-500 to-cyan-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '6', name: 'Books', slug: 'books', metadata: { icon: 'Book', color: 'from-amber-500 to-yellow-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '7', name: 'Health & Beauty', slug: 'health-beauty', metadata: { icon: 'Heart', color: 'from-purple-500 to-indigo-600', type: 'product' }, createdAt: '', updatedAt: '' },
+  { id: '8', name: 'Baby & Kids', slug: 'baby-kids', metadata: { icon: 'Baby', color: 'from-rose-400 to-pink-500', type: 'product' }, createdAt: '', updatedAt: '' }
+];
+
+const defaultPropertyCategories: ApiCategory[] = [
+  { id: 'residential', name: 'Residential', slug: 'residential', metadata: { icon: 'Home', color: 'from-emerald-500 to-teal-600', type: 'property' }, createdAt: '', updatedAt: '' },
+  { id: 'commercial', name: 'Commercial', slug: 'commercial', metadata: { icon: 'Building', color: 'from-blue-500 to-indigo-600', type: 'property' }, createdAt: '', updatedAt: '' },
+  { id: 'land', name: 'Land & Plots', slug: 'land', metadata: { icon: 'MapPin', color: 'from-green-500 to-emerald-600', type: 'property' }, createdAt: '', updatedAt: '' },
+  { id: 'rentals', name: 'Rentals', slug: 'rentals', metadata: { icon: 'Key', color: 'from-purple-500 to-violet-600', type: 'property' }, createdAt: '', updatedAt: '' },
+  { id: 'luxury', name: 'Luxury Homes', slug: 'luxury', metadata: { icon: 'Crown', color: 'from-yellow-500 to-amber-600', type: 'property' }, createdAt: '', updatedAt: '' },
+  { id: 'investment', name: 'Investment', slug: 'investment', metadata: { icon: 'TrendingUp', color: 'from-cyan-500 to-blue-600', type: 'property' }, createdAt: '', updatedAt: '' }
+];
+
 const EnhancedHomePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +49,8 @@ const EnhancedHomePage: React.FC = () => {
   const { user } = useAuthContext();
   const { itemCount } = useCart();
   
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [productCategories, setProductCategories] = useState<ApiCategory[]>([]);
+  const [propertyCategories, setPropertyCategories] = useState<ApiCategory[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [recentProducts, setRecentProducts] = useState<Product[]>([]);
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
@@ -49,9 +71,17 @@ const EnhancedHomePage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const { data: categoriesData } = await categoryService.getMainCategories();
-      if (categoriesData) {
-        setCategories(categoriesData.slice(0, 8));
+      // Load categories from API
+      const [productCatsResult, propertyCatsResult] = await Promise.all([
+        categoryApiService.getProductCategories(),
+        categoryApiService.getPropertyCategories()
+      ]);
+      
+      if (productCatsResult.data) {
+        setProductCategories(productCatsResult.data);
+      }
+      if (propertyCatsResult.data) {
+        setPropertyCategories(propertyCatsResult.data);
       }
 
       // Reset lists before loading based on platform
@@ -323,36 +353,31 @@ const EnhancedHomePage: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Product Categories</h3>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-                  {[
-                    { id: '1', name: 'Electronics', slug: 'electronics', color: 'from-blue-500 to-purple-600' },
-                    { id: '2', name: 'Fashion', slug: 'fashion', color: 'from-pink-500 to-rose-600' },
-                    { id: '3', name: 'Home & Garden', slug: 'home-garden', color: 'from-green-500 to-emerald-600' },
-                    { id: '4', name: 'Vehicles', slug: 'vehicles', color: 'from-orange-500 to-red-600' },
-                    { id: '5', name: 'Sports', slug: 'sports', color: 'from-teal-500 to-cyan-600' },
-                    { id: '6', name: 'Books', slug: 'books', color: 'from-amber-500 to-yellow-600' },
-                    { id: '7', name: 'Health & Beauty', slug: 'health-beauty', color: 'from-purple-500 to-indigo-600' },
-                    { id: '8', name: 'Baby & Kids', slug: 'baby-kids', color: 'from-rose-400 to-pink-500' }
-                  ].map((category) => (
-                    <Card 
-                      key={category.id}
-                      className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
-                      onClick={() => navigate(`/products?category=${category.id}`)}
-                    >
-                      <CardContent className="p-4 text-center">
-                        <div className="mb-3 flex justify-center">
-                          <div className={`w-12 h-12 bg-gradient-to-br ${category.color} rounded-xl flex items-center justify-center shadow`}>
-                            {categoryIcons[category.slug as keyof typeof categoryIcons] ? 
-                              React.cloneElement(categoryIcons[category.slug as keyof typeof categoryIcons], { 
-                                className: "w-6 h-6 text-white" 
-                              }) : 
-                              <HomeIcon className="w-6 h-6 text-white" />
-                            }
+                  {(productCategories.length > 0 ? productCategories : defaultProductCategories).map((category) => {
+                    const color = category.metadata?.color || 'from-gray-500 to-gray-600';
+                    const iconName = category.metadata?.icon || 'Package';
+                    return (
+                      <Card 
+                        key={category.id}
+                        className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
+                        onClick={() => navigate(`/products?category=${category.id}`)}
+                      >
+                        <CardContent className="p-4 text-center">
+                          <div className="mb-3 flex justify-center">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center shadow`}>
+                              {categoryIcons[category.slug as keyof typeof categoryIcons] ? 
+                                React.cloneElement(categoryIcons[category.slug as keyof typeof categoryIcons], { 
+                                  className: "w-6 h-6 text-white" 
+                                }) : 
+                                <Package className="w-6 h-6 text-white" />
+                              }
+                            </div>
                           </div>
-                        </div>
-                        <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
               
@@ -361,34 +386,31 @@ const EnhancedHomePage: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-800 text-center mb-6">Property Categories</h3>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                  {[
-                    { id: 'residential', name: 'Residential', slug: 'residential', color: 'from-emerald-500 to-teal-600' },
-                    { id: 'commercial', name: 'Commercial', slug: 'commercial', color: 'from-blue-500 to-indigo-600' },
-                    { id: 'land', name: 'Land & Plots', slug: 'land', color: 'from-green-500 to-emerald-600' },
-                    { id: 'rentals', name: 'Rentals', slug: 'rentals', color: 'from-purple-500 to-violet-600' },
-                    { id: 'luxury', name: 'Luxury Homes', slug: 'luxury', color: 'from-yellow-500 to-amber-600' },
-                    { id: 'investment', name: 'Investment', slug: 'investment', color: 'from-cyan-500 to-blue-600' }
-                  ].map((category) => (
-                    <Card 
-                      key={category.id}
-                      className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
-                      onClick={() => navigate(`/properties?category=${category.id}`)}
-                    >
-                      <CardContent className="p-4 text-center">
-                        <div className="mb-3 flex justify-center">
-                          <div className={`w-12 h-12 bg-gradient-to-br ${category.color} rounded-xl flex items-center justify-center shadow`}>
-                            {category.slug === 'residential' && <HomeIcon className="w-6 h-6 text-white" />}
-                            {category.slug === 'commercial' && <Building className="w-6 h-6 text-white" />}
-                            {category.slug === 'land' && <MapPin className="w-6 h-6 text-white" />}
-                            {category.slug === 'rentals' && <HomeIcon className="w-6 h-6 text-white" />}
-                            {category.slug === 'luxury' && <Star className="w-6 h-6 text-white" />}
-                            {category.slug === 'investment' && <TrendingUp className="w-6 h-6 text-white" />}
+                  {(propertyCategories.length > 0 ? propertyCategories : defaultPropertyCategories).map((category) => {
+                    const color = category.metadata?.color || 'from-gray-500 to-gray-600';
+                    return (
+                      <Card 
+                        key={category.id}
+                        className="cursor-pointer group border-0 shadow-md hover:shadow-lg transition-shadow duration-200 bg-white"
+                        onClick={() => navigate(`/properties?category=${category.id}`)}
+                      >
+                        <CardContent className="p-4 text-center">
+                          <div className="mb-3 flex justify-center">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center shadow`}>
+                              {category.slug === 'residential' && <HomeIcon className="w-6 h-6 text-white" />}
+                              {category.slug === 'commercial' && <Building className="w-6 h-6 text-white" />}
+                              {category.slug === 'land' && <MapPin className="w-6 h-6 text-white" />}
+                              {category.slug === 'rentals' && <HomeIcon className="w-6 h-6 text-white" />}
+                              {category.slug === 'luxury' && <Star className="w-6 h-6 text-white" />}
+                              {category.slug === 'investment' && <TrendingUp className="w-6 h-6 text-white" />}
+                              {!['residential', 'commercial', 'land', 'rentals', 'luxury', 'investment'].includes(category.slug) && <Building className="w-6 h-6 text-white" />}
+                            </div>
                           </div>
-                        </div>
-                        <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          <h3 className="font-semibold text-xs text-gray-800">{category.name}</h3>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             </>

@@ -102,8 +102,8 @@ class ProductApiService {
   // Get single product by ID
   async getProductById(id: string): Promise<Product | null> {
     try {
-      const response = await apiClient.get<BackendProductResponse>(`/products/${id}`, false);
-      return response.data?.product || null;
+      const response = await apiClient.get<{ success: boolean; data: Product }>(`/products/${id}`, false);
+      return response.data || null;
     } catch (error: any) {
       console.error('Error getting product:', error);
       return null;
