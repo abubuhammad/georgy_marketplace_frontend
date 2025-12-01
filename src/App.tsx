@@ -64,6 +64,7 @@ import ArtisanConnectPage from '@/pages/ArtisanConnectPage';
 import AdminDashboard from '@/pages/dashboards/AdminDashboard';
 import AdminReports from '@/pages/AdminReports';
 import AddProduct from '@/pages/AddProduct';
+import EditProduct from '@/pages/EditProduct';
 import AddProperty from '@/pages/AddProperty';
 import PostJob from '@/pages/PostJob';
 import ResumeUpload from '@/pages/ResumeUpload';
@@ -134,6 +135,7 @@ function App() {
                 <Route path="/support" element={<CustomerSupport />} />
                 <Route path="/seller/products" element={<ProductManagement />} />
                 <Route path="/seller/products/add" element={<AddProduct />} />
+                <Route path="/seller/products/edit/:id" element={<EditProduct />} />
                 <Route path="/seller/orders" element={<OrderManagement />} />
                 <Route path="/properties/add" element={<AddProperty />} />
                 <Route path="/seller/profile" element={<SellerProfile />} />

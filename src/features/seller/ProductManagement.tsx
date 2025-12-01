@@ -367,14 +367,28 @@ const ProductManagement: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  title="Edit Product"
+                                  onClick={() => navigate(`/seller/products/edit/${item.productId}`)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  title="Adjust Stock"
                                   onClick={() => {
                                     setSelectedProduct(item);
                                     setShowStockDialog(true);
                                   }}
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Boxes className="w-4 h-4" />
                                 </Button>
-                                <Button size="sm" variant="outline">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  title="View Product"
+                                  onClick={() => navigate(`/product/${item.productId}`)}
+                                >
                                   <Eye className="w-4 h-4" />
                                 </Button>
                               </div>
