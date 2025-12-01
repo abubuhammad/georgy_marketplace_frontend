@@ -253,13 +253,17 @@ const groceriesFields: FieldConfig[] = [
     required: false,
     options: [
       { value: 'bag', label: 'Bag' },
+      { value: 'basket', label: 'Basket' },
       { value: 'bottle', label: 'Bottle' },
       { value: 'can', label: 'Can' },
       { value: 'box', label: 'Box' },
+      { value: 'crate', label: 'Crate' },
       { value: 'sachet', label: 'Sachet' },
       { value: 'jar', label: 'Jar' },
       { value: 'container', label: 'Container' },
-      { value: 'wrapper', label: 'Wrapper' }
+      { value: 'wrapper', label: 'Wrapper' },
+      { value: 'bunch', label: 'Bunch' },
+      { value: 'loose', label: 'Loose/Unpackaged' }
     ],
     group: 'specifications'
   },

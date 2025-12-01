@@ -301,21 +301,13 @@ class ProductService {
           }) as string[]
         };
         
-        const response = await fetch('/api/products', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-          },
-          body: JSON.stringify(productDataWithImageUrls)
-        });
+        // Use apiClient to ensure correct baseURL is used
+        const result = await apiClient.post<{ success: boolean; data: Product; error?: string }>('/products', productDataWithImageUrls);
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          return { data: null, error: errorData.error || 'Failed to create product' };
+        if (!result.success) {
+          return { data: null, error: result.error || 'Failed to create product' };
         }
         
-        const result = await response.json();
         return { data: result.data, error: null };
       } catch (error) {
         console.error('Error creating product:', error);

@@ -20,14 +20,20 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    // Use proxy in development, full URL in production
-    if (import.meta.env.DEV) {
-      // In development, use relative URLs - they'll be proxied to backend
+    // Always use environment variable if available, fallback to production URL
+    const envUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+    
+    if (envUrl) {
+      this.baseURL = envUrl;
+    } else if (import.meta.env.DEV) {
+      // In development without env var, use proxy
       this.baseURL = '/api';
     } else {
-      // In production, use environment variable or fallback
-      this.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      // Production fallback - use the known backend URL
+      this.baseURL = 'https://georgy-marketplace-backend.onrender.com/api';
     }
+    
+    console.log('🔗 API Client initialized with baseURL:', this.baseURL);
     
     // Load token from localStorage on initialization
     this.token = localStorage.getItem('auth_token');
