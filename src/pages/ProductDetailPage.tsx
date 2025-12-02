@@ -117,12 +117,60 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-NG', {
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-NG', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Get seller info from product (handle both product.user and product.seller.user structures)
+  const getSellerInfo = () => {
+    const seller = product?.seller;
+    const sellerUser = seller?.user || (product as any)?.user;
+    return {
+      name: seller?.businessName || `${sellerUser?.firstName || ''} ${sellerUser?.lastName || ''}`.trim() || 'Seller',
+      avatar: sellerUser?.avatar || seller?.logo,
+      phone: seller?.businessPhone || sellerUser?.phone,
+      email: seller?.businessEmail || sellerUser?.email,
+      isVerified: seller?.isVerified || sellerUser?.is_verified || sellerUser?.emailVerified,
+      memberSince: seller?.createdAt || sellerUser?.createdAt,
+      id: seller?.id || seller?.userId || sellerUser?.id
+    };
+  };
+
+  // Contact seller handlers
+  const handleChatWithSeller = () => {
+    const sellerInfo = getSellerInfo();
+    if (!user) {
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    // Navigate to chat with seller
+    navigate(`/messages?sellerId=${sellerInfo.id}&productId=${id}`);
+  };
+
+  const handleCallSeller = () => {
+    const sellerInfo = getSellerInfo();
+    if (sellerInfo.phone) {
+      window.location.href = `tel:${sellerInfo.phone}`;
+    } else {
+      alert('Seller phone number is not available. Please use the chat option.');
+    }
+  };
+
+  const handleContactSeller = () => {
+    const sellerInfo = getSellerInfo();
+    if (!user) {
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    // Navigate to chat/contact page
+    navigate(`/messages?sellerId=${sellerInfo.id}&productId=${id}`);
   };
 
   // Role-specific helper functions
@@ -433,37 +481,42 @@ const ProductDetailPage: React.FC = () => {
             {/* Seller Info */}
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={product.user?.avatar} />
-                    <AvatarFallback>
-                      <User className="w-6 h-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-semibold">
-                        {product.user?.firstName} {product.user?.lastName}
-                      </h3>
-                      {product.user?.is_verified && (
-                        <Verified className="w-4 h-4 text-blue-500" />
-                      )}
+                {(() => {
+                  const sellerInfo = getSellerInfo();
+                  return (
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={sellerInfo.avatar || undefined} />
+                        <AvatarFallback>
+                          <User className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold">
+                            {sellerInfo.name}
+                          </h3>
+                          {sellerInfo.isVerified && (
+                            <Verified className="w-4 h-4 text-blue-500" />
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          Member since {formatDate(sellerInfo.memberSince)}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleChatWithSeller}>
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Chat
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCallSeller}>
+                          <Phone className="w-4 h-4 mr-2" />
+                          Call
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      Member since {formatDate(product.user?.createdAt || '')}
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Chat
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Phone className="w-4 h-4 mr-2" />
-                      Call
-                    </Button>
-                  </div>
-                </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -516,7 +569,7 @@ const ProductDetailPage: React.FC = () => {
                     Add to Cart
                   </Button>
                   {canContactSeller() && (
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="lg" onClick={handleContactSeller}>
                       <MessageCircle className="w-5 h-5 mr-2" />
                       Contact Seller
                     </Button>
