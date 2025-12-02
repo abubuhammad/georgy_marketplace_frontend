@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import productService from '@/services/productService';
 import realEstateService from '@/services/realEstateService';
 import { Product } from '@/types';
@@ -71,6 +72,7 @@ const UnifiedMarketplace: React.FC = () => {
   const { searchQuery, setSearchQuery } = useAppContext();
   const { user } = useAuthContext();
   const { addItem } = useCart();
+  const { toast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -114,7 +116,30 @@ const UnifiedMarketplace: React.FC = () => {
   };
 
   const handleAddToCart = (product: Product) => {
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to add items to your cart and place orders.',
+        variant: 'destructive',
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate('/login')}
+            className="border-white text-white hover:bg-white hover:text-red-600"
+          >
+            Sign In
+          </Button>
+        ),
+      });
+      return;
+    }
+    
     addItem(product);
+    toast({
+      title: 'Added to cart',
+      description: `${product.title || product.name} has been added to your cart.`,
+    });
   };
 
   const formatCurrency = (amount: number) => {

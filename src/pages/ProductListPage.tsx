@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link, useLocation } from 'react-router-dom';
+import { useSearchParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, Filter, Grid, List, MapPin, Star, Heart, SlidersHorizontal, 
   ChevronDown, ArrowUpDown, Eye, ShoppingCart 
@@ -17,6 +17,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import productService from '@/services/productService';
 import categoryService from '@/services/categoryService';
 import { Product, Category, SearchFilters } from '@/types';
@@ -24,9 +25,11 @@ import { Product, Category, SearchFilters } from '@/types';
 const ProductListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const { currentPlatform, searchQuery, setSearchQuery } = useAppContext();
   const { user } = useAuthContext();
   const { addItem } = useCart();
+  const { toast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -207,7 +210,30 @@ const ProductListPage: React.FC = () => {
   };
 
   const handleAddToCart = (product: Product) => {
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to add items to your cart and place orders.',
+        variant: 'destructive',
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate('/login')}
+            className="border-white text-white hover:bg-white hover:text-red-600"
+          >
+            Sign In
+          </Button>
+        ),
+      });
+      return;
+    }
+    
     addItem(product);
+    toast({
+      title: 'Added to cart',
+      description: `${product.title || product.name} has been added to your cart.`,
+    });
   };
 
   const handleToggleFavorite = async (productId: string) => {
