@@ -53,7 +53,7 @@ export const HeroSection: React.FC<HeroSectionProps> = memo(({
         <img 
           src={imageSrc}
           alt="Hero"
-          className="w-full h-auto min-h-[300px] max-h-[70vh] object-cover object-top"
+          className="w-full h-auto object-contain"
         />
       </section>
 
