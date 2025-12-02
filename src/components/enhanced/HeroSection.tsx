@@ -48,20 +48,20 @@ export const HeroSection: React.FC<HeroSectionProps> = memo(({
 
   return (
     <div className="flex flex-col">
-      {/* Hero Image Section - Clean, no overlay text */}
-      <div className="relative w-full h-[45vh] sm:h-[50vh] md:h-[55vh] lg:h-[60vh] overflow-hidden">
+      {/* Hero Image Section - Full image display without cropping */}
+      <section className="relative w-full" aria-label="Hero banner">
         <img 
           src={imageSrc}
           alt="Hero"
-          className="w-full h-full object-cover object-top"
+          className="w-full h-auto min-h-[300px] max-h-[70vh] object-cover object-top"
         />
-      </div>
+      </section>
 
-      {/* Search & CTA Section - Below the hero image */}
-      <div className="bg-white py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-8 relative z-10">
+      {/* Hero Search Section - Below the hero image */}
+      <section className="hero-search w-full bg-white py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8" aria-label="Search and navigation">
         <div className="max-w-3xl mx-auto">
           {/* Search Bar */}
-          <form onSubmit={onSearch} className="w-full mb-4 sm:mb-6">
+          <form onSubmit={onSearch} className="w-full mb-4 sm:mb-6" role="search" aria-label="Search products">
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 p-1.5 sm:p-2">
               <div className="flex">
                 <Input
@@ -70,10 +70,12 @@ export const HeroSection: React.FC<HeroSectionProps> = memo(({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 border-0 bg-transparent text-gray-800 placeholder:text-gray-400 text-sm sm:text-base py-2.5 sm:py-3 px-3 sm:px-4 focus:ring-0 focus:outline-none"
+                  aria-label="Search input"
                 />
                 <Button 
                   type="submit" 
                   className={`${colorClasses.primary.bg} ${colorClasses.primary.bgHover} px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-white shadow-md flex-shrink-0`}
+                  aria-label="Submit search"
                 >
                   <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
@@ -117,19 +119,19 @@ export const HeroSection: React.FC<HeroSectionProps> = memo(({
           </div>
 
           {/* Features Pills */}
-          <div className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-6">
+          <nav className="flex flex-wrap justify-center gap-2 mt-4 sm:mt-6" aria-label="Features">
             {config.features.slice(0, 4).map((feature, index) => (
               <span 
                 key={index}
                 className="inline-flex items-center px-3 py-1.5 bg-gray-100 rounded-full text-xs sm:text-sm text-gray-700"
               >
-                <span className="w-1.5 h-1.5 bg-primary rounded-full mr-2" />
+                <span className="w-1.5 h-1.5 bg-primary rounded-full mr-2" aria-hidden="true" />
                 {feature}
               </span>
             ))}
-          </div>
+          </nav>
         </div>
-      </div>
+      </section>
     </div>
   );
 });
