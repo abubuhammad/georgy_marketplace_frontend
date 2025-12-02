@@ -86,25 +86,29 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
       key: 'ecommerce', 
       label: 'Marketplace',
       icon: Package,
-      color: 'from-primary to-accent'
+      color: 'from-primary to-accent',
+      path: '/marketplace'
     },
     { 
       key: 'realestate', 
       label: 'Real Estate',
       icon: Building,
-      color: 'from-blue-600 to-blue-500'
+      color: 'from-blue-600 to-blue-500',
+      path: '/properties'
     },
     { 
       key: 'jobs', 
       label: 'Jobs',
       icon: Briefcase,
-      color: 'from-purple-600 to-purple-500'
+      color: 'from-purple-600 to-purple-500',
+      path: '/jobs'
     },
     { 
       key: 'artisan', 
-      label: 'ArtisanConnect',
+      label: 'Artisans',
       icon: Wrench,
-      color: 'from-orange-600 to-orange-500'
+      color: 'from-orange-600 to-orange-500',
+      path: '/artisan-connect'
     }
   ];
 
@@ -310,7 +314,10 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setPlatform(platform.key as any)}
+                        onClick={() => {
+                          setPlatform(platform.key as any);
+                          navigate(platform.path);
+                        }}
                         className={`relative z-10 group px-4 py-2 rounded-xl transition-all duration-300 backdrop-blur-sm border ${
                           isActive 
                             ? 'text-white border-white/20 shadow-lg' 
@@ -932,7 +939,11 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
                           key={platform.key}
                           variant={currentPlatform === platform.key ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setPlatform(platform.key as any)}
+                          onClick={() => {
+                            setPlatform(platform.key as any);
+                            navigate(platform.path);
+                            setIsMobileMenuOpen(false);
+                          }}
                           className={`w-full justify-start ${
                             currentPlatform === platform.key 
                               ? `bg-gradient-to-r ${platform.color} text-white border-0` 
