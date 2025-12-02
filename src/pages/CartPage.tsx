@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Minus, Plus, Trash2, ArrowLeft, ArrowRight,
-  Heart, Truck, Shield, RotateCcw
+  Heart, Truck, Shield, RotateCcw, MapPin, Clock, Loader2, Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
+import makurdiDeliveryApi, { MakurdiZone } from '@/services/makurdiDeliveryApi';
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,8 +28,64 @@ const CartPage: React.FC = () => {
     totalAmount,
     updateQuantity, 
     removeItem, 
-    clearCart 
+    clearCart,
+    deliveryAddress,
+    deliveryQuote,
+    deliveryType,
+    isCalculatingDelivery,
+    deliveryError,
+    setDeliveryAddress,
+    setDeliveryType
   } = useCart();
+
+  const [zones, setZones] = useState<MakurdiZone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<string>('');
+  const [addressInput, setAddressInput] = useState(deliveryAddress?.address || '');
+
+  // Load Makurdi zones
+  useEffect(() => {
+    const loadZones = async () => {
+      const result = await makurdiDeliveryApi.getZones();
+      if (result.success) {
+        setZones(result.zones);
+      }
+    };
+    loadZones();
+  }, []);
+
+  // Handle zone selection
+  const handleZoneSelect = (zoneCode: string) => {
+    setSelectedZone(zoneCode);
+    const zone = zones.find(z => z.code === zoneCode);
+    if (zone) {
+      setDeliveryAddress({
+        address: addressInput || zone.name,
+        city: 'Makurdi',
+        state: 'Benue',
+        lat: zone.center.lat,
+        lng: zone.center.lng,
+        zone: zoneCode
+      });
+    }
+  };
+
+  // Handle address input change
+  const handleAddressChange = (value: string) => {
+    setAddressInput(value);
+    if (selectedZone) {
+      const zone = zones.find(z => z.code === selectedZone);
+      if (zone) {
+        setDeliveryAddress({
+          address: value,
+          city: 'Makurdi',
+          state: 'Benue',
+          lat: zone.center.lat,
+          lng: zone.center.lng,
+          zone: selectedZone
+        });
+      }
+    }
+  };
 
   const handleQuantityChange = (productId: string, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -258,7 +318,115 @@ const CartPage: React.FC = () => {
           </div>
 
           {/* Order Summary */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
+            {/* Delivery Location Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Delivery Location
+                </CardTitle>
+                <CardDescription>
+                  Select your delivery zone in Makurdi
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Zone Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="zone">Delivery Zone</Label>
+                  <Select value={selectedZone} onValueChange={handleZoneSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your area" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone.code} value={zone.code}>
+                          <div className="flex justify-between items-center w-full">
+                            <span>{zone.name}</span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              ₦{zone.baseFee}+
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Street Address */}
+                <div className="space-y-2">
+                  <Label htmlFor="address">Street Address</Label>
+                  <Input
+                    id="address"
+                    placeholder="Enter your street address"
+                    value={addressInput}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                  />
+                </div>
+
+                {/* Delivery Type */}
+                <div className="space-y-2">
+                  <Label>Delivery Speed</Label>
+                  <RadioGroup 
+                    value={deliveryType} 
+                    onValueChange={(value) => setDeliveryType(value as any)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2 border rounded-lg p-2 hover:bg-gray-50">
+                      <RadioGroupItem value="standard" id="standard" />
+                      <Label htmlFor="standard" className="flex-1 cursor-pointer">
+                        <span className="font-medium">Standard</span>
+                        <span className="text-xs text-gray-500 block">45-90 mins</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 border rounded-lg p-2 hover:bg-gray-50">
+                      <RadioGroupItem value="express" id="express" />
+                      <Label htmlFor="express" className="flex-1 cursor-pointer">
+                        <span className="font-medium">Express (+30%)</span>
+                        <span className="text-xs text-gray-500 block">30-60 mins</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Delivery Quote Info */}
+                {isCalculatingDelivery && (
+                  <div className="flex items-center justify-center py-2 text-sm text-gray-600">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Calculating delivery fee...
+                  </div>
+                )}
+
+                {deliveryQuote && !isCalculatingDelivery && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-1">
+                    <div className="flex items-center text-green-800">
+                      <Truck className="w-4 h-4 mr-2" />
+                      <span className="font-medium">Delivery: ₦{deliveryQuote.fee.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-green-700">
+                      <Clock className="w-3 h-3 mr-2" />
+                      <span>Est. {deliveryQuote.estimatedTime}</span>
+                    </div>
+                    {deliveryQuote.deliveryZone && (
+                      <p className="text-xs text-green-600">
+                        Zone: {zones.find(z => z.code === deliveryQuote.deliveryZone)?.name || deliveryQuote.deliveryZone}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {deliveryError && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-start">
+                      <Info className="w-4 h-4 mr-2 text-yellow-600 mt-0.5" />
+                      <p className="text-sm text-yellow-800">{deliveryError}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Order Summary Card */}
             <Card className="sticky top-8">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
@@ -271,9 +439,22 @@ const CartPage: React.FC = () => {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span>Shipping</span>
+                    <span className="flex items-center">
+                      Shipping
+                      {deliveryQuote?.deliveryZone && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {zones.find(z => z.code === deliveryQuote.deliveryZone)?.name}
+                        </Badge>
+                      )}
+                    </span>
                     <span className={shipping === 0 ? 'text-green-600 font-medium' : ''}>
-                      {shipping === 0 ? 'FREE' : `₦${shipping.toLocaleString()}`}
+                      {isCalculatingDelivery ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : shipping === 0 ? (
+                        'FREE'
+                      ) : (
+                        `₦${shipping.toLocaleString()}`
+                      )}
                     </span>
                   </div>
                   
@@ -290,10 +471,10 @@ const CartPage: React.FC = () => {
                   </div>
                 </div>
 
-                {shipping > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-sm text-yellow-800">
-                      Add ₦{(50000 - subtotal).toLocaleString()} more for FREE shipping!
+                {!selectedZone && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      Select your delivery zone above to see accurate shipping cost
                     </p>
                   </div>
                 )}
@@ -302,6 +483,7 @@ const CartPage: React.FC = () => {
                   onClick={handleProceedToCheckout}
                   className="w-full" 
                   size="lg"
+                  disabled={!selectedZone}
                 >
                   <ArrowRight className="w-5 h-5 mr-2" />
                   Proceed to Checkout
