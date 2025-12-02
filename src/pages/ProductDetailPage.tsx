@@ -96,7 +96,22 @@ const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
+    
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to add items to your cart and place orders.',
+        variant: 'destructive',
+      });
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    
     addItem(product, quantity);
+    toast({
+      title: 'Added to cart',
+      description: `${quantity} x ${product.title || product.name} has been added to your cart.`,
+    });
   };
 
   const handleToggleFavorite = async () => {

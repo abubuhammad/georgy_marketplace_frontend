@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
+import { useAuthContext } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Product } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -34,14 +36,39 @@ export const EnhancedProductCard: React.FC<EnhancedProductCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { user } = useAuthContext();
+  const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Cart expects full Product; add 1 item
+    
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to add items to your cart and place orders.',
+        variant: 'destructive',
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate('/login')}
+            className="border-white text-white hover:bg-white hover:text-red-600"
+          >
+            Sign In
+          </Button>
+        ),
+      });
+      return;
+    }
+    
     addItem(product, 1);
+    toast({
+      title: 'Added to cart',
+      description: `${product.name} has been added to your cart.`,
+    });
   };
 
   const handleLike = (e: React.MouseEvent) => {
