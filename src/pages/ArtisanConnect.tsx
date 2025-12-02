@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { ArtisanProvider } from '@/contexts/ArtisanContext';
+import { MainLayout } from '@/components/layout/MainLayout';
 import ServiceCategories from '@/features/artisan/components/ServiceCategories';
 import ArtisanDiscovery from '@/features/artisan/components/customer/ArtisanDiscovery';
 import ServiceRequestForm from '@/features/artisan/components/customer/ServiceRequestForm';
@@ -25,9 +26,11 @@ export default function ArtisanConnect() {
   if (user?.role === 'artisan') {
     return (
       <ArtisanProvider>
-        <div className="min-h-screen bg-gray-50">
-          <ArtisanDashboard />
-        </div>
+        <MainLayout>
+          <div className="min-h-screen bg-gray-50">
+            <ArtisanDashboard />
+          </div>
+        </MainLayout>
       </ArtisanProvider>
     );
   }
@@ -178,9 +181,10 @@ export default function ArtisanConnect() {
 
   return (
     <ArtisanProvider>
-      <div className="min-h-screen bg-gray-50">
-        {/* Hero Section - Only show on categories view */}
-        {currentView === 'categories' && renderHeroSection()}
+      <MainLayout>
+        <div className="min-h-screen bg-gray-50">
+          {/* Hero Section - Only show on categories view */}
+          {currentView === 'categories' && renderHeroSection()}
 
         {/* Features Section - Only show on categories view */}
         {currentView === 'categories' && renderFeatures()}
@@ -269,7 +273,8 @@ export default function ArtisanConnect() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </MainLayout>
     </ArtisanProvider>
   );
 }
