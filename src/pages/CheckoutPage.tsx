@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, CreditCard, MapPin, Truck, Shield, CheckCircle,
-  Clock, Package, User, Phone, Mail
+  Clock, Package, User, Phone, Mail, Banknote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +19,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
-import paymentService from '@/services/paymentService';
+import { useToast } from '@/hooks/use-toast';
 import { getProductImageUrl } from '@/utils/imageUtils';
-import { PaymentGateway } from '@/features/payment/PaymentGateway';
-import { PaymentResult } from '@/features/payment/types';
+import { PaystackPayment } from '@/features/payment/PaystackPayment';
+import { PaystackResponse } from '@/services/paystackService';
 
 const checkoutSchema = z.object({
   // Shipping Information
@@ -49,6 +49,7 @@ type CheckoutFormData = z.infer<typeof checkoutSchema>;
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { toast } = useToast();
   const { 
     items, 
     itemCount, 
@@ -61,8 +62,9 @@ const CheckoutPage: React.FC = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showPaymentGateway, setShowPaymentGateway] = useState(false);
+  const [showPaystackPayment, setShowPaystackPayment] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
+  const [checkoutData, setCheckoutData] = useState<CheckoutFormData | null>(null);
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -132,66 +134,99 @@ const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      // Create order data
-      const orderData = {
-        items: items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        shippingAddress: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          phone: data.phone,
-          address: data.address,
-          city: data.city,
-          state: data.state,
-          postalCode: data.postalCode,
-        },
-        paymentMethod: data.paymentMethod,
-        subtotal: subtotal,
-        shipping: shipping,
-        tax: tax,
-        total: totalAmount,
-      };
+      // Store checkout data for payment
+      setCheckoutData(data);
 
       // Generate order ID
-      const newOrderId = 'ORDER_' + Date.now();
+      const newOrderId = 'GMP_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8).toUpperCase();
       setOrderId(newOrderId);
 
-      // Show payment gateway for processing
-      setShowPaymentGateway(true);
+      // Handle different payment methods
+      if (data.paymentMethod === 'cash_on_delivery') {
+        // For COD, create order directly and go to success
+        await handleCashOnDeliveryOrder(newOrderId, data);
+      } else {
+        // For online payment methods, show Paystack
+        setShowPaystackPayment(true);
+      }
       
     } catch (error) {
       console.error('Checkout error:', error);
-      // Handle error (show toast, etc.)
+      toast({
+        title: "Checkout Error",
+        description: "Failed to process checkout. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handlePaymentSuccess = (result: PaymentResult) => {
-    console.log('Payment successful:', result);
+  const handleCashOnDeliveryOrder = async (orderIdValue: string, data: CheckoutFormData) => {
+    // For COD orders, create order without payment
+    console.log('Creating COD order:', orderIdValue);
+    
+    toast({
+      title: "Order Placed!",
+      description: "Your order has been placed. Pay on delivery.",
+    });
+
+    clearCart();
+    navigate('/order-success', { 
+      state: { 
+        orderNumber: orderIdValue,
+        total: totalAmount,
+        paymentMethod: 'cash_on_delivery',
+        shippingAddress: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+        }
+      }
+    });
+  };
+
+  const handlePaymentSuccess = (response: PaystackResponse & { verified?: boolean }) => {
+    console.log('Payment successful:', response);
+    
     clearCart();
     navigate('/order-success', { 
       state: { 
         orderNumber: orderId,
         total: totalAmount,
-        paymentMethod: form.getValues('paymentMethod'),
-        paymentResult: result
+        paymentMethod: checkoutData?.paymentMethod || 'card',
+        paymentReference: response.reference,
+        transactionId: response.transaction,
+        verified: response.verified,
+        shippingAddress: checkoutData ? {
+          firstName: checkoutData.firstName,
+          lastName: checkoutData.lastName,
+          address: checkoutData.address,
+          city: checkoutData.city,
+          state: checkoutData.state,
+        } : undefined
       }
     });
   };
 
   const handlePaymentError = (error: string) => {
     console.error('Payment error:', error);
-    setShowPaymentGateway(false);
-    // Handle error (show toast, etc.)
+    setShowPaystackPayment(false);
+    toast({
+      title: "Payment Failed",
+      description: error || "There was an issue processing your payment. Please try again.",
+      variant: "destructive"
+    });
   };
 
   const handlePaymentCancel = () => {
-    setShowPaymentGateway(false);
+    setShowPaystackPayment(false);
+    toast({
+      title: "Payment Cancelled",
+      description: "You can try again or choose a different payment method.",
+    });
   };
 
   const nextStep = () => {
@@ -221,16 +256,17 @@ const CheckoutPage: React.FC = () => {
     );
   }
 
-  // Show payment gateway when processing payment
-  if (showPaymentGateway) {
+  // Show Paystack payment when processing
+  if (showPaystackPayment && checkoutData) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
-          <PaymentGateway
+          <PaystackPayment
             amount={totalAmount}
-            currency="NGN"
+            email={checkoutData.email}
             orderId={orderId}
-            customerId={user?.id || 'guest'}
+            customerName={`${checkoutData.firstName} ${checkoutData.lastName}`}
+            phone={checkoutData.phone}
             onSuccess={handlePaymentSuccess}
             onError={handlePaymentError}
             onCancel={handlePaymentCancel}
