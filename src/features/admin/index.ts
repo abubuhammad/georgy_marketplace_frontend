@@ -6,3 +6,4 @@ export { default as ContentModeration } from './ContentModeration';
 export { default as Analytics } from './Analytics';
 export { default as RevenueSharing } from './RevenueSharing';
 export { default as AdminProfile } from './AdminProfile';
+export { default as SellerManagement } from './SellerManagement';

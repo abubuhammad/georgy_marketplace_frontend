@@ -51,7 +51,8 @@ import {
   UserManagement as AdminUserManagement,
   CustomerManagement as AdminCustomerManagement,
   ContentModeration as AdminContentModeration,
-  Analytics as AdminAnalytics
+  Analytics as AdminAnalytics,
+  SellerManagement as AdminSellerManagement
 } from '@/features/admin';
 import { RealEstateDashboard, PropertyManagement } from '@/features/realtor';
 import { DeliveryAgentRegistration } from '@/components/delivery/DeliveryAgentRegistration';
@@ -108,6 +109,7 @@ function App() {
                 <Route path="/admin/customers" element={<AdminCustomerManagement />} />
                 <Route path="/admin/content-moderation" element={<AdminContentModeration />} />
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/sellers" element={<AdminSellerManagement />} />
                 
                 <Route path="/products" element={<ProductListPage />} />
                 <Route path="/product/:id" element={<ProductDetailPage />} />

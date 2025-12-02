@@ -152,6 +152,14 @@ const AdminDashboard: React.FC = () => {
       bgColor: 'bg-blue-50'
     },
     {
+      title: 'Seller Management',
+      description: 'Approve sellers and manage commissions',
+      icon: ShoppingBag,
+      link: '/admin/sellers',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50'
+    },
+    {
       title: 'Customer Management',
       description: 'Customer relationship management and analytics',
       icon: Users,
