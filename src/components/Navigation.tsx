@@ -157,7 +157,7 @@ const Navigation: React.FC = () => {
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-6">
               <Link
                 to="/"
                 className={cn(
@@ -185,7 +185,27 @@ const Navigation: React.FC = () => {
                   isActivePath('/properties') && 'border-red-500 text-gray-900'
                 )}
               >
-                Properties
+                Real Estate
+              </Link>
+
+              <Link
+                to="/jobs"
+                className={cn(
+                  'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
+                  isActivePath('/jobs') && 'border-red-500 text-gray-900'
+                )}
+              >
+                Jobs
+              </Link>
+
+              <Link
+                to="/artisan-connect"
+                className={cn(
+                  'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
+                  isActivePath('/artisan-connect') && 'border-red-500 text-gray-900'
+                )}
+              >
+                Artisans
               </Link>
 
               {user && roleNavItems.length > 0 && (
@@ -380,7 +400,23 @@ const Navigation: React.FC = () => {
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Building className="mr-3 h-5 w-5" />
-                        Properties
+                        Real Estate
+                      </Link>
+                      <Link
+                        to="/jobs"
+                        className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Target className="mr-3 h-5 w-5" />
+                        Jobs
+                      </Link>
+                      <Link
+                        to="/artisan-connect"
+                        className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Zap className="mr-3 h-5 w-5" />
+                        Artisans
                       </Link>
 
                       {user && roleNavItems.length > 0 && (
