@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import makurdiDeliveryApi, { MakurdiZone } from '@/services/makurdiDeliveryApi';
+import { getProductImageUrl } from '@/utils/imageUtils';
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -208,8 +209,8 @@ const CartPage: React.FC = () => {
                       {/* Product Image */}
                       <div className="flex-shrink-0">
                         <img
-                          src={item.product.images?.[0]?.image_url || '/api/placeholder/120/120'}
-                          alt={item.product.title}
+                          src={getProductImageUrl(item.product.images, '/api/placeholder/120/120')}
+                          alt={item.product.title || item.product.name}
                           className="w-24 h-24 object-cover rounded-lg"
                         />
                       </div>

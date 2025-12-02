@@ -20,6 +20,7 @@ import * as z from 'zod';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import paymentService from '@/services/paymentService';
+import { getProductImageUrl } from '@/utils/imageUtils';
 import { PaymentGateway } from '@/features/payment/PaymentGateway';
 import { PaymentResult } from '@/features/payment/types';
 
@@ -552,8 +553,8 @@ const CheckoutPage: React.FC = () => {
                             <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
                               <div className="flex items-center space-x-3">
                                 <img
-                                  src={item.product.images?.[0]?.image_url || '/api/placeholder/50/50'}
-                                  alt={item.product.title}
+                                  src={getProductImageUrl(item.product.images, '/api/placeholder/50/50')}
+                                  alt={item.product.title || item.product.name}
                                   className="w-12 h-12 object-cover rounded"
                                 />
                                 <div>
