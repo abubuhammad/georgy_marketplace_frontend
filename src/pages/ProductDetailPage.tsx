@@ -20,6 +20,13 @@ import { useCart } from '@/contexts/CartContext';
 import productService from '@/services/productService';
 import { Product } from '@/types';
 
+// Helper function to extract image URL from various formats
+const getImageUrl = (image: string | { image_url?: string; url?: string } | undefined): string => {
+  if (!image) return '/api/placeholder/600/400';
+  if (typeof image === 'string') return image;
+  return image.image_url || image.url || '/api/placeholder/600/400';
+};
+
 const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -234,7 +241,7 @@ const ProductDetailPage: React.FC = () => {
                 </Link>
                 <span>/</span>
                 <span className="text-gray-900 truncate max-w-40">
-                  {product.title}
+                  {product.title || product.name}
                 </span>
               </nav>
             </div>
@@ -310,8 +317,8 @@ const ProductDetailPage: React.FC = () => {
                 <DialogTrigger asChild>
                   <div className="relative cursor-pointer group">
                     <img
-                      src={product.images?.[selectedImageIndex]?.image_url || '/api/placeholder/600/400'}
-                      alt={product.title}
+                      src={getImageUrl(product.images?.[selectedImageIndex])}
+                      alt={product.title || product.name}
                       className="w-full h-96 object-cover rounded-lg"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity rounded-lg flex items-center justify-center">
@@ -325,8 +332,8 @@ const ProductDetailPage: React.FC = () => {
                       {product.images?.map((image, index) => (
                         <CarouselItem key={index}>
                           <img
-                            src={image.image_url}
-                            alt={`${product.title} ${index + 1}`}
+                            src={getImageUrl(image)}
+                            alt={`${product.title || product.name} ${index + 1}`}
                             className="w-full h-auto max-h-[80vh] object-contain"
                           />
                         </CarouselItem>
@@ -353,8 +360,8 @@ const ProductDetailPage: React.FC = () => {
                     }`}
                   >
                     <img
-                      src={image.image_url}
-                      alt={`${product.title} ${index + 1}`}
+                      src={getImageUrl(image)}
+                      alt={`${product.title || product.name} ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -368,7 +375,7 @@ const ProductDetailPage: React.FC = () => {
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold text-gray-900">
-                  {product.title}
+                  {product.title || product.name}
                 </h1>
                 <Badge variant="outline" className="ml-4">
                   <Eye className="w-3 h-3 mr-1" />
@@ -660,15 +667,15 @@ const ProductDetailPage: React.FC = () => {
                 <Card key={similarProduct.id} className="hover:shadow-lg transition-shadow">
                   <div className="relative">
                     <img
-                      src={similarProduct.images?.[0]?.image_url || '/api/placeholder/300/200'}
-                      alt={similarProduct.title}
+                      src={getImageUrl(similarProduct.images?.[0])}
+                      alt={similarProduct.title || similarProduct.name}
                       className="w-full h-48 object-cover rounded-t-lg"
                     />
                   </div>
                   <CardContent className="p-4">
                     <Link to={`/product/${similarProduct.id}`}>
                       <CardTitle className="text-lg mb-2 line-clamp-2 hover:text-primary">
-                        {similarProduct.title}
+                        {similarProduct.title || similarProduct.name}
                       </CardTitle>
                     </Link>
                     <div className="text-xl font-bold text-primary mb-2">
