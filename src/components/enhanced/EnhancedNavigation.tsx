@@ -87,21 +87,21 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
       label: 'Marketplace',
       icon: Package,
       color: 'from-primary to-accent',
-      path: '/marketplace'
+      path: '/'
     },
     { 
       key: 'realestate', 
       label: 'Real Estate',
       icon: Building,
       color: 'from-blue-600 to-blue-500',
-      path: '/properties'
+      path: '/'
     },
     { 
       key: 'jobs', 
       label: 'Jobs',
       icon: Briefcase,
       color: 'from-purple-600 to-purple-500',
-      path: '/jobs'
+      path: '/'
     },
     { 
       key: 'artisan', 
@@ -316,7 +316,9 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
                         size="sm"
                         onClick={() => {
                           setPlatform(platform.key as any);
-                          navigate(platform.path);
+                          if (platform.key === 'artisan') {
+                            navigate('/artisan-connect');
+                          }
                         }}
                         className={`relative z-10 group px-4 py-2 rounded-xl transition-all duration-300 backdrop-blur-sm border ${
                           isActive 
@@ -941,7 +943,9 @@ export const EnhancedNavigation: React.FC<EnhancedNavigationProps> = ({
                           size="sm"
                           onClick={() => {
                             setPlatform(platform.key as any);
-                            navigate(platform.path);
+                            if (platform.key === 'artisan') {
+                              navigate('/artisan-connect');
+                            }
                             setIsMobileMenuOpen(false);
                           }}
                           className={`w-full justify-start ${
