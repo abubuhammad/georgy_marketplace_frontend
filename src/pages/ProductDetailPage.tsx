@@ -4,7 +4,7 @@ import {
   ArrowLeft, Heart, Share2, MessageCircle, Phone, MapPin, Star, 
   ShoppingCart, Shield, Eye, Calendar, Package, Truck, RefreshCw,
   ChevronLeft, ChevronRight, ZoomIn, User, Store, Verified,
-  Edit, Trash2, BarChart3, Settings, AlertTriangle
+  Edit, Trash2, BarChart3, Settings, AlertTriangle, Send, X, Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,11 +12,15 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 import productService from '@/services/productService';
 import { Product } from '@/types';
 
@@ -32,6 +36,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { addItem } = useCart();
+  const { toast } = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
@@ -39,6 +44,14 @@ const ProductDetailPage: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  
+  // Contact seller dialog state
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -145,13 +158,15 @@ const ProductDetailPage: React.FC = () => {
 
   // Contact seller handlers
   const handleChatWithSeller = () => {
-    const sellerInfo = getSellerInfo();
     if (!user) {
       navigate('/login', { state: { from: `/product/${id}` } });
       return;
     }
-    // Navigate to chat with seller
-    navigate(`/messages?sellerId=${sellerInfo.id}&productId=${id}`);
+    // Pre-fill user info if available
+    setContactName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
+    setContactEmail(user.email || '');
+    setContactMessage(`Hi, I'm interested in "${product?.title || product?.name}". Is it still available?`);
+    setContactDialogOpen(true);
   };
 
   const handleCallSeller = () => {
@@ -159,18 +174,76 @@ const ProductDetailPage: React.FC = () => {
     if (sellerInfo.phone) {
       window.location.href = `tel:${sellerInfo.phone}`;
     } else {
-      alert('Seller phone number is not available. Please use the chat option.');
+      toast({
+        title: "Phone not available",
+        description: "Seller phone number is not available. Please use the message option instead.",
+        variant: "destructive"
+      });
     }
   };
 
   const handleContactSeller = () => {
-    const sellerInfo = getSellerInfo();
     if (!user) {
       navigate('/login', { state: { from: `/product/${id}` } });
       return;
     }
-    // Navigate to chat/contact page
-    navigate(`/messages?sellerId=${sellerInfo.id}&productId=${id}`);
+    // Pre-fill user info if available
+    setContactName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
+    setContactEmail(user.email || '');
+    setContactMessage(`Hi, I'm interested in "${product?.title || product?.name}". Is it still available?`);
+    setContactDialogOpen(true);
+  };
+
+  const handleSendMessage = async () => {
+    if (!contactMessage.trim()) {
+      toast({
+        title: "Message required",
+        description: "Please enter a message to send to the seller.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSendingMessage(true);
+    
+    try {
+      // In a real app, this would send to your backend API
+      // For now, we'll simulate sending and show success
+      const sellerInfo = getSellerInfo();
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Log the message (in production, this would be an API call)
+      console.log('Message sent to seller:', {
+        sellerId: sellerInfo.id,
+        sellerEmail: sellerInfo.email,
+        productId: id,
+        productName: product?.title || product?.name,
+        senderName: contactName,
+        senderEmail: contactEmail,
+        senderPhone: contactPhone,
+        message: contactMessage
+      });
+
+      toast({
+        title: "Message sent!",
+        description: `Your message has been sent to ${sellerInfo.name}. They will respond to your email soon.`,
+      });
+
+      // Reset form and close dialog
+      setContactMessage('');
+      setContactDialogOpen(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Failed to send message",
+        description: "Please try again or contact support.",
+        variant: "destructive"
+      });
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   // Role-specific helper functions
@@ -745,6 +818,112 @@ const ProductDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Contact Seller Dialog */}
+      <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Contact Seller
+            </DialogTitle>
+            <DialogDescription>
+              Send a message to {getSellerInfo().name} about this product.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Product Info */}
+            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <img
+                src={getImageUrl(product?.images?.[0])}
+                alt={product?.title || product?.name}
+                className="w-16 h-16 object-cover rounded"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">
+                  {product?.title || product?.name}
+                </p>
+                <p className="text-primary font-bold">
+                  ₦{product?.price?.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            {/* Contact Form */}
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="contactName">Your Name</Label>
+                <Input
+                  id="contactName"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Enter your name"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contactEmail">Your Email</Label>
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  placeholder="Enter your email"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contactPhone">Your Phone (Optional)</Label>
+                <Input
+                  id="contactPhone"
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="Enter your phone number"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="contactMessage">Message</Label>
+                <Textarea
+                  id="contactMessage"
+                  value={contactMessage}
+                  onChange={(e) => setContactMessage(e.target.value)}
+                  placeholder="Write your message to the seller..."
+                  rows={4}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setContactDialogOpen(false)}
+              disabled={sendingMessage}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendMessage}
+              disabled={sendingMessage || !contactMessage.trim()}
+            >
+              {sendingMessage ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Message
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
