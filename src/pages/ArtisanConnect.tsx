@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { ArtisanProvider } from '@/contexts/ArtisanContext';
-import { MainLayout } from '@/components/layout/MainLayout';
 import ServiceCategories from '@/features/artisan/components/ServiceCategories';
 import ArtisanDiscovery from '@/features/artisan/components/customer/ArtisanDiscovery';
 import ServiceRequestForm from '@/features/artisan/components/customer/ServiceRequestForm';
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ServiceCategory, Artisan } from '@/types';
-import { Wrench, Search, MessageSquare, Star, Clock, Shield } from 'lucide-react';
+import { Wrench, Search, MessageSquare, Star, Clock, Shield, ArrowLeft, Home } from 'lucide-react';
 
 type ViewState = 'categories' | 'discovery' | 'request-form' | 'dashboard';
 

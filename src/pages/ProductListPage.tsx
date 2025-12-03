@@ -19,8 +19,8 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import productService from '@/services/productService';
-import categoryService from '@/services/categoryService';
-import { Product, Category, SearchFilters } from '@/types';
+import categoryApiService, { Category as ApiCategory } from '@/services/categoryApiService';
+import { Product, SearchFilters } from '@/types';
 
 const ProductListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,7 +32,7 @@ const ProductListPage: React.FC = () => {
   const { toast } = useToast();
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,7 +81,7 @@ const ProductListPage: React.FC = () => {
   }, [searchQuery]);
 
   const loadCategories = async () => {
-    const { data } = await categoryService.getMainCategories();
+    const { data } = await categoryApiService.getProductCategories();
     if (data) {
       setCategories(data);
     }
