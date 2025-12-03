@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Minus, Plus, Trash2, ArrowLeft, ArrowRight,
-  Heart, Truck, Shield, RotateCcw, MapPin, Clock, Loader2, Info
+  Heart, Truck, Shield, RotateCcw, MapPin, Clock, Loader2, Info, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
-import { BENUE_LGA_OPTIONS, MAKURDI_AREA_OPTIONS, BENUE_LGAS } from '@/services/benueDeliveryApi';
+import benueDeliveryApi, { BENUE_LGA_OPTIONS, MAKURDI_AREA_OPTIONS, BENUE_LGAS, BenueZone } from '@/services/benueDeliveryApi';
 import { getProductImageUrl } from '@/utils/imageUtils';
 
-// Combined zone options - Makurdi areas first, then other LGAs
-const DELIVERY_ZONES = [
-  { group: 'Makurdi (Same-Day Available)', options: MAKURDI_AREA_OPTIONS },
-  { group: 'Other Benue LGAs', options: BENUE_LGA_OPTIONS.filter(lga => lga.value !== 'makurdi') }
-];
+// Zone option type
+interface ZoneOption {
+  value: string;
+  label: string;
+  code: string;
+  is_suspended?: boolean;
+  suspension_reason?: string;
+}
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -48,11 +51,68 @@ const CartPage: React.FC = () => {
   const [selectedZone, setSelectedZone] = useState<string>('');
   const [selectedLGA, setSelectedLGA] = useState<string>('');
   const [addressInput, setAddressInput] = useState(deliveryAddress?.address || '');
+  const [loadingZones, setLoadingZones] = useState(true);
+  const [makurdiZones, setMakurdiZones] = useState<ZoneOption[]>([]);
+  const [otherLGAZones, setOtherLGAZones] = useState<ZoneOption[]>([]);
+  const [suspendedZones, setSuspendedZones] = useState<Set<string>>(new Set());
+
+  // Fetch zones from API on mount
+  useEffect(() => {
+    const fetchZones = async () => {
+      setLoadingZones(true);
+      try {
+        const response = await benueDeliveryApi.getZones(true); // Include suspended to show them as disabled
+        
+        if (response.success && response.zones.length > 0) {
+          const suspended = new Set<string>();
+          const makurdi: ZoneOption[] = [];
+          const others: ZoneOption[] = [];
+          
+          response.zones.forEach((zone: BenueZone) => {
+            const option: ZoneOption = {
+              value: zone.name.toLowerCase(),
+              label: zone.name,
+              code: zone.code,
+              is_suspended: zone.is_suspended,
+              suspension_reason: zone.suspension_reason
+            };
+            
+            if (zone.is_suspended) {
+              suspended.add(zone.code);
+            }
+            
+            if (zone.code.startsWith('MKD-')) {
+              makurdi.push(option);
+            } else {
+              others.push(option);
+            }
+          });
+          
+          setSuspendedZones(suspended);
+          setMakurdiZones(makurdi.length > 0 ? makurdi : MAKURDI_AREA_OPTIONS.map(z => ({ ...z, is_suspended: false })));
+          setOtherLGAZones(others.length > 0 ? others : BENUE_LGA_OPTIONS.filter(l => l.value !== 'makurdi').map(z => ({ ...z, is_suspended: false })));
+        } else {
+          // Fallback to static options
+          setMakurdiZones(MAKURDI_AREA_OPTIONS.map(z => ({ ...z, is_suspended: false })));
+          setOtherLGAZones(BENUE_LGA_OPTIONS.filter(l => l.value !== 'makurdi').map(z => ({ ...z, is_suspended: false })));
+        }
+      } catch (error) {
+        console.error('Error fetching zones:', error);
+        // Fallback to static options
+        setMakurdiZones(MAKURDI_AREA_OPTIONS.map(z => ({ ...z, is_suspended: false })));
+        setOtherLGAZones(BENUE_LGA_OPTIONS.filter(l => l.value !== 'makurdi').map(z => ({ ...z, is_suspended: false })));
+      } finally {
+        setLoadingZones(false);
+      }
+    };
+    
+    fetchZones();
+  }, []);
 
   // Get zone info from selection
   const getZoneInfo = (zoneValue: string) => {
     // Check Makurdi areas first
-    const makurdiArea = MAKURDI_AREA_OPTIONS.find(z => z.value === zoneValue);
+    const makurdiArea = makurdiZones.find(z => z.value === zoneValue) || MAKURDI_AREA_OPTIONS.find(z => z.value === zoneValue);
     if (makurdiArea) {
       const coords = BENUE_LGAS[zoneValue];
       return {
@@ -61,12 +121,13 @@ const CartPage: React.FC = () => {
         city: 'Makurdi',
         lat: coords?.lat || 7.7333,
         lng: coords?.lng || 8.5333,
-        isMakurdi: true
+        isMakurdi: true,
+        is_suspended: makurdiArea.is_suspended
       };
     }
     
     // Check other LGAs
-    const lga = BENUE_LGA_OPTIONS.find(z => z.value === zoneValue);
+    const lga = otherLGAZones.find(z => z.value === zoneValue) || BENUE_LGA_OPTIONS.find(z => z.value === zoneValue);
     if (lga) {
       const coords = BENUE_LGAS[zoneValue];
       return {
@@ -75,7 +136,8 @@ const CartPage: React.FC = () => {
         city: lga.label,
         lat: coords?.lat || 7.7333,
         lng: coords?.lng || 8.5333,
-        isMakurdi: false
+        isMakurdi: false,
+        is_suspended: lga.is_suspended
       };
     }
     
@@ -364,32 +426,70 @@ const CartPage: React.FC = () => {
                 {/* Zone Selection */}
                 <div className="space-y-2">
                   <Label htmlFor="zone">Delivery Area / LGA</Label>
-                  <Select value={selectedZone} onValueChange={handleZoneSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your area" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {DELIVERY_ZONES.map((group) => (
-                        <div key={group.group}>
-                          <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                            {group.group}
-                          </div>
-                          {group.options.map((zone) => (
-                            <SelectItem key={zone.value} value={zone.value}>
-                              <div className="flex justify-between items-center w-full">
-                                <span>{zone.label}</span>
-                                {zone.code.startsWith('MKD-') && (
+                  {loadingZones ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-500">Loading zones...</span>
+                    </div>
+                  ) : (
+                    <Select value={selectedZone} onValueChange={handleZoneSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your area" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {/* Makurdi Areas */}
+                        {makurdiZones.length > 0 && (
+                          <div>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                              Makurdi (Same-Day Available)
+                            </div>
+                            {makurdiZones.filter(z => !z.is_suspended).map((zone) => (
+                              <SelectItem key={zone.value} value={zone.value}>
+                                <div className="flex justify-between items-center w-full">
+                                  <span>{zone.label}</span>
                                   <Badge variant="outline" className="ml-2 text-xs text-green-600">
                                     Fast
                                   </Badge>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Other LGAs */}
+                        {otherLGAZones.length > 0 && (
+                          <div>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                              Other Benue LGAs
+                            </div>
+                            {otherLGAZones.filter(z => !z.is_suspended).map((zone) => (
+                              <SelectItem key={zone.value} value={zone.value}>
+                                <span>{zone.label}</span>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Suspended zones (shown but disabled) */}
+                        {(makurdiZones.some(z => z.is_suspended) || otherLGAZones.some(z => z.is_suspended)) && (
+                          <div>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-yellow-600 bg-yellow-50">
+                              Temporarily Unavailable
+                            </div>
+                            {[...makurdiZones, ...otherLGAZones].filter(z => z.is_suspended).map((zone) => (
+                              <SelectItem key={zone.value} value={zone.value} disabled>
+                                <div className="flex items-center text-gray-400">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  <span>{zone.label}</span>
+                                  <span className="ml-2 text-xs">(Suspended)</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                   {selectedLGA && (
                     <p className="text-xs text-green-600">
                       Delivering to: {selectedLGA}, Benue State
