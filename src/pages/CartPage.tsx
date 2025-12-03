@@ -14,8 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/contexts/CartContext';
 import { useAuthContext } from '@/contexts/AuthContext';
-import makurdiDeliveryApi, { MakurdiZone } from '@/services/makurdiDeliveryApi';
+import { BENUE_LGA_OPTIONS, MAKURDI_AREA_OPTIONS, BENUE_LGAS } from '@/services/benueDeliveryApi';
 import { getProductImageUrl } from '@/utils/imageUtils';
+
+// Combined zone options - Makurdi areas first, then other LGAs
+const DELIVERY_ZONES = [
+  { group: 'Makurdi (Same-Day Available)', options: MAKURDI_AREA_OPTIONS },
+  { group: 'Other Benue LGAs', options: BENUE_LGA_OPTIONS.filter(lga => lga.value !== 'makurdi') }
+];
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -39,33 +45,56 @@ const CartPage: React.FC = () => {
     setDeliveryType
   } = useCart();
 
-  const [zones, setZones] = useState<MakurdiZone[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>('');
+  const [selectedLGA, setSelectedLGA] = useState<string>('');
   const [addressInput, setAddressInput] = useState(deliveryAddress?.address || '');
 
-  // Load Makurdi zones
-  useEffect(() => {
-    const loadZones = async () => {
-      const result = await makurdiDeliveryApi.getZones();
-      if (result.success) {
-        setZones(result.zones);
-      }
-    };
-    loadZones();
-  }, []);
+  // Get zone info from selection
+  const getZoneInfo = (zoneValue: string) => {
+    // Check Makurdi areas first
+    const makurdiArea = MAKURDI_AREA_OPTIONS.find(z => z.value === zoneValue);
+    if (makurdiArea) {
+      const coords = BENUE_LGAS[zoneValue];
+      return {
+        name: makurdiArea.label,
+        code: makurdiArea.code,
+        city: 'Makurdi',
+        lat: coords?.lat || 7.7333,
+        lng: coords?.lng || 8.5333,
+        isMakurdi: true
+      };
+    }
+    
+    // Check other LGAs
+    const lga = BENUE_LGA_OPTIONS.find(z => z.value === zoneValue);
+    if (lga) {
+      const coords = BENUE_LGAS[zoneValue];
+      return {
+        name: lga.label,
+        code: lga.code,
+        city: lga.label,
+        lat: coords?.lat || 7.7333,
+        lng: coords?.lng || 8.5333,
+        isMakurdi: false
+      };
+    }
+    
+    return null;
+  };
 
   // Handle zone selection
-  const handleZoneSelect = (zoneCode: string) => {
-    setSelectedZone(zoneCode);
-    const zone = zones.find(z => z.code === zoneCode);
-    if (zone) {
+  const handleZoneSelect = (zoneValue: string) => {
+    setSelectedZone(zoneValue);
+    const zoneInfo = getZoneInfo(zoneValue);
+    if (zoneInfo) {
+      setSelectedLGA(zoneInfo.name);
       setDeliveryAddress({
-        address: addressInput || zone.name,
-        city: 'Makurdi',
+        address: addressInput || zoneInfo.name,
+        city: zoneInfo.city,
         state: 'Benue',
-        lat: zone.center.lat,
-        lng: zone.center.lng,
-        zone: zoneCode
+        lat: zoneInfo.lat,
+        lng: zoneInfo.lng,
+        zone: zoneInfo.code
       });
     }
   };
@@ -74,15 +103,15 @@ const CartPage: React.FC = () => {
   const handleAddressChange = (value: string) => {
     setAddressInput(value);
     if (selectedZone) {
-      const zone = zones.find(z => z.code === selectedZone);
-      if (zone) {
+      const zoneInfo = getZoneInfo(selectedZone);
+      if (zoneInfo) {
         setDeliveryAddress({
           address: value,
-          city: 'Makurdi',
+          city: zoneInfo.city,
           state: 'Benue',
-          lat: zone.center.lat,
-          lng: zone.center.lng,
-          zone: selectedZone
+          lat: zoneInfo.lat,
+          lng: zoneInfo.lng,
+          zone: zoneInfo.code
         });
       }
     }
@@ -328,30 +357,44 @@ const CartPage: React.FC = () => {
                   Delivery Location
                 </CardTitle>
                 <CardDescription>
-                  Select your delivery zone in Makurdi
+                  Select your delivery area in Benue State
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Zone Selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="zone">Delivery Zone</Label>
+                  <Label htmlFor="zone">Delivery Area / LGA</Label>
                   <Select value={selectedZone} onValueChange={handleZoneSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select your area" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {zones.map((zone) => (
-                        <SelectItem key={zone.code} value={zone.code}>
-                          <div className="flex justify-between items-center w-full">
-                            <span>{zone.name}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              ₦{zone.baseFee}+
-                            </Badge>
+                    <SelectContent className="max-h-[300px]">
+                      {DELIVERY_ZONES.map((group) => (
+                        <div key={group.group}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                            {group.group}
                           </div>
-                        </SelectItem>
+                          {group.options.map((zone) => (
+                            <SelectItem key={zone.value} value={zone.value}>
+                              <div className="flex justify-between items-center w-full">
+                                <span>{zone.label}</span>
+                                {zone.code.startsWith('MKD-') && (
+                                  <Badge variant="outline" className="ml-2 text-xs text-green-600">
+                                    Fast
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </div>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedLGA && (
+                    <p className="text-xs text-green-600">
+                      Delivering to: {selectedLGA}, Benue State
+                    </p>
+                  )}
                 </div>
 
                 {/* Street Address */}
@@ -408,9 +451,9 @@ const CartPage: React.FC = () => {
                       <Clock className="w-3 h-3 mr-2" />
                       <span>Est. {deliveryQuote.estimatedTime}</span>
                     </div>
-                    {deliveryQuote.deliveryZone && (
+                    {selectedLGA && (
                       <p className="text-xs text-green-600">
-                        Zone: {zones.find(z => z.code === deliveryQuote.deliveryZone)?.name || deliveryQuote.deliveryZone}
+                        Area: {selectedLGA}
                       </p>
                     )}
                   </div>
@@ -442,9 +485,9 @@ const CartPage: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="flex items-center">
                       Shipping
-                      {deliveryQuote?.deliveryZone && (
+                      {selectedLGA && (
                         <Badge variant="outline" className="ml-2 text-xs">
-                          {zones.find(z => z.code === deliveryQuote.deliveryZone)?.name}
+                          {selectedLGA}
                         </Badge>
                       )}
                     </span>
@@ -475,7 +518,7 @@ const CartPage: React.FC = () => {
                 {!selectedZone && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-sm text-blue-800">
-                      Select your delivery zone above to see accurate shipping cost
+                      Select your delivery area above to see accurate shipping cost. We deliver across all Benue State LGAs!
                     </p>
                   </div>
                 )}
