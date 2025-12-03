@@ -256,7 +256,7 @@ const HomePage: React.FC = () => {
               <Card 
                 key={category.id} 
                 className="group hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:-translate-y-3 border-0 bg-gradient-to-br from-white to-gray-50 hover:from-primary/5 hover:to-accent/5" 
-                onClick={() => navigate(`/products?category=${category.id}`)}
+                onClick={() => navigate(`/products?category=${category.slug}`)}
               >
                 <CardContent className="p-8 text-center">
                   <div className="mb-6 flex justify-center">
