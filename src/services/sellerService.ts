@@ -380,29 +380,49 @@ export class SellerService {
       }
 
       // Transform backend product data to inventory format
-      return (result.data || []).map((product: any) => ({
-        id: `inv-${product.id}`,
-        productId: product.id,
-        product: {
-          id: product.id,
-          title: product.title,
-          sku: product.sku || 'N/A',
-          price: product.price,
-          category: product.category, // This should be a string from backend
-          images: product.images ? 
-            JSON.parse(product.images).map((url: string) => ({ image_url: url })) : 
-            [{ image_url: '/api/placeholder/200/200' }]
-        },
-        quantity: product.stockQuantity || 0,
-        reservedQuantity: 0, // Not implemented yet
-        availableQuantity: product.stockQuantity || 0,
-        reorderLevel: 10, // Default value, not in backend yet
-        reorderQuantity: 20, // Default value
-        cost: product.price * 0.8, // Estimated cost at 80% of price
-        location: 'Default Warehouse',
-        lastUpdated: product.updatedAt || new Date().toISOString(),
-        movements: [] // Not implemented yet
-      }));
+      return (result.data || []).map((product: any) => {
+        // Handle images - may be array (already parsed) or string (needs parsing)
+        let imagesArray: { image_url: string }[] = [];
+        if (product.images) {
+          if (Array.isArray(product.images)) {
+            imagesArray = product.images.map((url: string) => ({ image_url: url }));
+          } else if (typeof product.images === 'string') {
+            try {
+              const parsed = JSON.parse(product.images);
+              imagesArray = Array.isArray(parsed) 
+                ? parsed.map((url: string) => ({ image_url: url }))
+                : [{ image_url: product.images }];
+            } catch {
+              imagesArray = [{ image_url: product.images }];
+            }
+          }
+        }
+        if (imagesArray.length === 0) {
+          imagesArray = [{ image_url: '/api/placeholder/200/200' }];
+        }
+
+        return {
+          id: `inv-${product.id}`,
+          productId: product.id,
+          product: {
+            id: product.id,
+            title: product.title,
+            sku: product.sku || 'N/A',
+            price: product.price,
+            category: product.categoryId || product.category || 'Uncategorized',
+            images: imagesArray
+          },
+          quantity: product.stockQuantity || 0,
+          reservedQuantity: 0, // Not implemented yet
+          availableQuantity: product.stockQuantity || 0,
+          reorderLevel: 10, // Default value, not in backend yet
+          reorderQuantity: 20, // Default value
+          cost: product.price * 0.8, // Estimated cost at 80% of price
+          location: 'Default Warehouse',
+          lastUpdated: product.updatedAt || new Date().toISOString(),
+          movements: [] // Not implemented yet
+        };
+      });
     } catch (error) {
       console.error('Error fetching inventory:', error);
       
