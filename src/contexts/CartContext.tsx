@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { CartItem, Product } from '@/types';
 import { useAuthContext } from './AuthContext';
-import makurdiDeliveryApi, { DeliveryQuoteResponse, MAKURDI_AREAS } from '@/services/makurdiDeliveryApi';
+import benueDeliveryApi, { BENUE_LGAS } from '@/services/benueDeliveryApi';
 
 // Delivery Address Type
 export interface DeliveryAddress {
@@ -166,11 +166,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const setDeliveryAddress = useCallback((address: DeliveryAddress) => {
     // Try to geocode the address if coordinates not provided
     if (!address.lat || !address.lng) {
-      const geocoded = makurdiDeliveryApi.geocodeAddress(address.address, address.city);
+      const geocoded = benueDeliveryApi.geocodeAddress(address.address, address.city, address.state);
       if (geocoded) {
         address.lat = geocoded.lat;
         address.lng = geocoded.lng;
-        address.zone = geocoded.zone;
+        address.zone = geocoded.code;
       }
     }
     
@@ -196,10 +196,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       return;
     }
 
-    // Check if delivery is within Makurdi
-    if (deliveryAddress.city?.toLowerCase() !== 'makurdi' && deliveryAddress.state?.toLowerCase() !== 'benue') {
-      setDeliveryError('Delivery is currently only available within Makurdi, Benue State');
-      // Use fallback flat rate for non-Makurdi addresses
+    // Check if delivery is within Benue State
+    if (deliveryAddress.state?.toLowerCase() !== 'benue') {
+      setDeliveryError('Delivery is currently only available within Benue State');
+      // Use fallback flat rate for non-Benue addresses
       setDeliveryQuote({
         fee: 2500,
         estimatedTime: '2-5 business days',
@@ -211,16 +211,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setDeliveryError(null);
 
     try {
-      // Get seller's location from first item (simplified - in production, handle multiple sellers)
-      const firstItem = items[0];
-      const sellerLocation = firstItem?.product?.locationCity?.toLowerCase() === 'makurdi'
-        ? makurdiDeliveryApi.geocodeAddress(firstItem.product.locationCity || 'Makurdi', 'Makurdi')
-        : { lat: 7.7333, lng: 8.5333, zone: 'MKD-WK' }; // Default to Wurukum (central Makurdi)
-
       // Get delivery coordinates
       const deliveryCoords = deliveryAddress.lat && deliveryAddress.lng
         ? { lat: deliveryAddress.lat, lng: deliveryAddress.lng }
-        : makurdiDeliveryApi.geocodeAddress(deliveryAddress.address, deliveryAddress.city);
+        : benueDeliveryApi.geocodeAddress(deliveryAddress.address, deliveryAddress.city, deliveryAddress.state);
 
       if (!deliveryCoords) {
         throw new Error('Could not determine delivery location');
@@ -229,41 +223,54 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       // Calculate package value
       const packageValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-      // Call API for quote
-      const result = await makurdiDeliveryApi.getDeliveryQuote({
-        pickupLocation: {
-          lat: sellerLocation?.lat || 7.7333,
-          lng: sellerLocation?.lng || 8.5333,
-          zone: sellerLocation?.zone,
-        },
-        deliveryLocation: {
-          lat: deliveryCoords.lat,
-          lng: deliveryCoords.lng,
-          zone: deliveryAddress.zone,
-        },
-        packageValue,
-        deliveryType,
+      // Build cart items for the API
+      const cartItems = items.map((item, index) => ({
+        id: item.id,
+        product_id: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        weight_kg: item.product?.weight || undefined,
+        pickup_location_id: item.product?.sellerId || `seller_${index}`,
+        pickup_coords: item.product?.locationCity 
+          ? benueDeliveryApi.geocodeAddress(item.product.locationCity, item.product.locationCity, 'Benue')
+          : { lat: 7.7333, lng: 8.5333 }, // Default to Makurdi center
+      }));
+
+      // Call v2 API for quote
+      const result = await benueDeliveryApi.getDeliveryQuote({
+        cart_id: `cart_${Date.now()}`,
+        subtotal_ngn: packageValue,
+        items: cartItems,
+        payment_method: 'card',
+        delivery_coords: { lat: deliveryCoords.lat, lng: deliveryCoords.lng },
+        delivery_type: deliveryType,
       });
 
-      if (result.success && result.quote) {
+      // Find the selected delivery option
+      const selectedOption = result.delivery_options.find(opt => opt.id === deliveryType) || result.delivery_options[0];
+
+      if (selectedOption) {
         setDeliveryQuote({
-          fee: result.quote.totalFee,
-          estimatedTime: result.quote.estimatedTime,
-          pickupZone: result.quote.pickupZone,
-          deliveryZone: result.quote.deliveryZone,
-          distance: result.quote.distance,
+          fee: selectedOption.price_ngn,
+          estimatedTime: selectedOption.eta_friendly,
+          pickupZone: result.per_shipment_fees?.[0]?.pickup_zone,
+          deliveryZone: result.per_shipment_fees?.[0]?.delivery_zone,
+          distance: result.distance_km,
           breakdown: {
-            baseFee: result.quote.breakdown.baseFee,
-            distanceFee: result.quote.breakdown.distanceFee,
-            crossZoneFee: result.quote.breakdown.crossZoneFee,
-            platformFee: result.quote.breakdown.platformFee,
+            baseFee: selectedOption.price_breakdown.find(b => b.name.includes('Base'))?.amount || 0,
+            distanceFee: selectedOption.price_breakdown.find(b => b.name.includes('Distance'))?.amount || 0,
+            crossZoneFee: selectedOption.price_breakdown.find(b => b.name.includes('Cross'))?.amount || 0,
+            platformFee: selectedOption.price_breakdown.find(b => b.name.includes('Platform'))?.amount || 0,
           },
         });
+        
+        if (!selectedOption.is_available && selectedOption.suspension_reason) {
+          setDeliveryError(`Note: ${selectedOption.suspension_reason}`);
+        }
       } else {
         // Fallback calculation
-        const fallbackFee = makurdiDeliveryApi.calculateFallbackFee(
-          sellerLocation?.zone || 'MKD-WK',
-          deliveryAddress.zone || 'MKD-WK',
+        const fallbackFee = benueDeliveryApi.calculateFallbackFee(
+          deliveryAddress.zone || 'BN-MKD',
           packageValue,
           deliveryType
         );
@@ -276,8 +283,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.error('Error calculating delivery fee:', error);
       setDeliveryError('Could not calculate delivery fee. Using standard rate.');
       // Use fallback
+      const packageValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       setDeliveryQuote({
-        fee: 2500,
+        fee: packageValue > 50000 ? 0 : 2500,
         estimatedTime: '45-90 mins',
       });
     } finally {

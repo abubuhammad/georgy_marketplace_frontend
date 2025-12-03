@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getProductImageUrl } from '@/utils/imageUtils';
 import { PaystackPayment } from '@/features/payment/PaystackPayment';
 import { PaystackResponse } from '@/services/paystackService';
+import { BENUE_LGA_OPTIONS, MAKURDI_AREA_OPTIONS } from '@/services/benueDeliveryApi';
 
 const checkoutSchema = z.object({
   // Shipping Information
@@ -427,25 +428,15 @@ const CheckoutPage: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField
                           control={form.control}
-                          name="city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter city" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
                           name="state"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>State</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <Select onValueChange={(value) => {
+                                field.onChange(value);
+                                // Reset city when state changes
+                                form.setValue('city', '');
+                              }} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select state" />
@@ -460,6 +451,41 @@ const CheckoutPage: React.FC = () => {
                                 </SelectContent>
                               </Select>
                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="city"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>City/LGA {form.watch('state') === 'Benue' && <span className="text-green-600 text-xs">(Delivery Available)</span>}</FormLabel>
+                              {form.watch('state') === 'Benue' ? (
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select LGA" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="" disabled>-- Select LGA --</SelectItem>
+                                    {BENUE_LGA_OPTIONS.map(lga => (
+                                      <SelectItem key={lga.value} value={lga.label}>
+                                        {lga.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <FormControl>
+                                  <Input placeholder="Enter city" {...field} />
+                                </FormControl>
+                              )}
+                              <FormMessage />
+                              {form.watch('state') && form.watch('state') !== 'Benue' && (
+                                <p className="text-xs text-amber-600">Note: Delivery currently available only in Benue State</p>
+                              )}
                             </FormItem>
                           )}
                         />
