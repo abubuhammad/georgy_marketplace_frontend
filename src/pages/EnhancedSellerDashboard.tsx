@@ -422,15 +422,68 @@ const EnhancedSellerDashboard: React.FC = () => {
 
           <TabsContent value="inventory">
             <Card>
-              <CardHeader>
-                <CardTitle>Inventory Tracking</CardTitle>
-                <CardDescription>Monitor your product stock levels</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Inventory & Products</CardTitle>
+                  <CardDescription>Manage your products, stock levels, and listings</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => navigate('/seller/products')}>
+                    <Package className="w-4 h-4 mr-2" />
+                    Manage All Products
+                  </Button>
+                  <Button onClick={() => navigate('/seller/products/add')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Product
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Inventory management interface would be displayed here</p>
-                  <Button className="mt-4">Manage Inventory</Button>
+                <div className="space-y-4">
+                  {topProducts.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">No products found. Start by adding your first product!</p>
+                      <Button onClick={() => navigate('/seller/products/add')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Your First Product
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-sm text-blue-600">Total Products</p>
+                          <p className="text-2xl font-bold text-blue-700">{dashboardData.totalListings}</p>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <p className="text-sm text-green-600">Active Listings</p>
+                          <p className="text-2xl font-bold text-green-700">{dashboardData.activeListings}</p>
+                        </div>
+                        <div className="bg-red-50 p-4 rounded-lg">
+                          <p className="text-sm text-red-600">Low Stock Items</p>
+                          <p className="text-2xl font-bold text-red-700">{dashboardData.lowStockItems}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-2">Your Products:</p>
+                      {topProducts.slice(0, 5).map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            <p className="text-sm text-gray-500">{product.sales} sales • Revenue: ₦{product.revenue.toLocaleString()}</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => navigate('/seller/products')}>
+                            Manage
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="text-center pt-4">
+                        <Button variant="link" onClick={() => navigate('/seller/products')}>
+                          View All Products →
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
