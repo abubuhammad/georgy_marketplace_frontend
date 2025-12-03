@@ -15,23 +15,27 @@ import { toast } from 'sonner';
 import { getFieldsForCategory, groupFields, groupLabels, FieldConfig } from '@/types/dynamicFields';
 import { DynamicFormField } from '@/components/forms/DynamicFormField';
 import { productService, CreateProductData } from '@/services/productService';
+import categoryApiService, { Category } from '@/services/categoryApiService';
 
-const categories = [
-  { id: 'electronics', name: 'Electronics' },
-  { id: 'groceries', name: 'Groceries' },
-  { id: 'fashion', name: 'Fashion & Beauty' },
-  { id: 'home', name: 'Home & Garden' },
-  { id: 'sports', name: 'Sports & Recreation' },
-  { id: 'books', name: 'Books & Education' },
-  { id: 'vehicles', name: 'Vehicles' },
-  { id: 'services', name: 'Services' }
+// Fallback categories for when API is not available
+const fallbackCategories = [
+  { id: 'electronics', name: 'Electronics', slug: 'electronics' },
+  { id: 'groceries', name: 'Groceries', slug: 'groceries' },
+  { id: 'fashion', name: 'Fashion & Beauty', slug: 'fashion' },
+  { id: 'home', name: 'Home & Garden', slug: 'home-garden' },
+  { id: 'sports', name: 'Sports & Recreation', slug: 'sports' },
+  { id: 'books', name: 'Books & Education', slug: 'books' },
+  { id: 'vehicles', name: 'Vehicles', slug: 'vehicles' },
+  { id: 'services', name: 'Services', slug: 'services' }
 ];
 
 const AddProduct: React.FC = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
   
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('');
   const [formData, setFormData] = useState<Record<string, string | number | boolean | string[] | File[] | null | undefined>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [currentFields, setCurrentFields] = useState<FieldConfig[]>([]);
@@ -39,10 +43,42 @@ const AddProduct: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Load categories from API on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await categoryApiService.getProductCategories();
+        if (data && data.length > 0) {
+          // Map API categories to include slug for field lookup
+          const mappedCategories = data.map((cat: Category) => ({
+            id: cat.id,
+            name: cat.name,
+            slug: cat.slug
+          }));
+          setCategories(mappedCategories);
+        } else {
+          // Use fallback if API fails
+          console.warn('Using fallback categories:', error);
+          setCategories(fallbackCategories);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        setCategories(fallbackCategories);
+      }
+    };
+    loadCategories();
+  }, []);
+
   // Update fields when category changes
   useEffect(() => {
     if (selectedCategory) {
-      const fields = getFieldsForCategory(selectedCategory);
+      // Find the category slug for field lookup
+      const category = categories.find(c => c.id === selectedCategory);
+      const slug = category?.slug || selectedCategory;
+      setSelectedCategorySlug(slug);
+      
+      // Use slug to get the right fields (since fields are organized by slug)
+      const fields = getFieldsForCategory(slug);
       const grouped = groupFields(fields);
       setCurrentFields(fields);
       setGroupedFields(grouped);
@@ -51,7 +87,7 @@ const AddProduct: React.FC = () => {
       setFormData({});
       setValidationErrors({});
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, categories]);
 
   const handleFieldChange = (name: string, value: string | number | boolean | string[] | File[] | null | undefined) => {
     setFormData(prev => ({ ...prev, [name]: value }));

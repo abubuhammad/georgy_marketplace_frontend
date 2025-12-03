@@ -11,16 +11,18 @@ import { getFieldsForCategory, groupFields, groupLabels, FieldConfig } from '@/t
 import { DynamicFormField } from '@/components/forms/DynamicFormField';
 import { productService } from '@/services/productService';
 import { apiClient } from '@/lib/apiClient';
+import categoryApiService, { Category } from '@/services/categoryApiService';
 
-const categories = [
-  { id: 'electronics', name: 'Electronics' },
-  { id: 'groceries', name: 'Groceries' },
-  { id: 'fashion', name: 'Fashion & Beauty' },
-  { id: 'home', name: 'Home & Garden' },
-  { id: 'sports', name: 'Sports & Recreation' },
-  { id: 'books', name: 'Books & Education' },
-  { id: 'vehicles', name: 'Vehicles' },
-  { id: 'services', name: 'Services' }
+// Fallback categories for when API is not available
+const fallbackCategories = [
+  { id: 'electronics', name: 'Electronics', slug: 'electronics' },
+  { id: 'groceries', name: 'Groceries', slug: 'groceries' },
+  { id: 'fashion', name: 'Fashion & Beauty', slug: 'fashion' },
+  { id: 'home', name: 'Home & Garden', slug: 'home-garden' },
+  { id: 'sports', name: 'Sports & Recreation', slug: 'sports' },
+  { id: 'books', name: 'Books & Education', slug: 'books' },
+  { id: 'vehicles', name: 'Vehicles', slug: 'vehicles' },
+  { id: 'services', name: 'Services', slug: 'services' }
 ];
 
 const EditProduct: React.FC = () => {
@@ -28,7 +30,9 @@ const EditProduct: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>('');
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [currentFields, setCurrentFields] = useState<FieldConfig[]>([]);
@@ -36,6 +40,30 @@ const EditProduct: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [existingImages, setExistingImages] = useState<string[]>([]);
+
+  // Load categories from API on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await categoryApiService.getProductCategories();
+        if (data && data.length > 0) {
+          const mappedCategories = data.map((cat: Category) => ({
+            id: cat.id,
+            name: cat.name,
+            slug: cat.slug
+          }));
+          setCategories(mappedCategories);
+        } else {
+          console.warn('Using fallback categories:', error);
+          setCategories(fallbackCategories);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        setCategories(fallbackCategories);
+      }
+    };
+    loadCategories();
+  }, []);
 
   // Load product data
   useEffect(() => {
@@ -46,13 +74,18 @@ const EditProduct: React.FC = () => {
 
   // Update fields when category changes
   useEffect(() => {
-    if (selectedCategory) {
-      const fields = getFieldsForCategory(selectedCategory);
+    if (selectedCategory && categories.length > 0) {
+      // Find the category slug for field lookup
+      const category = categories.find(c => c.id === selectedCategory);
+      const slug = category?.slug || selectedCategory;
+      setSelectedCategorySlug(slug);
+      
+      const fields = getFieldsForCategory(slug);
       const grouped = groupFields(fields);
       setCurrentFields(fields);
       setGroupedFields(grouped);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, categories]);
 
   const loadProductData = async () => {
     try {
