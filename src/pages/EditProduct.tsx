@@ -65,12 +65,12 @@ const EditProduct: React.FC = () => {
     loadCategories();
   }, []);
 
-  // Load product data
+  // Load product data after categories are loaded
   useEffect(() => {
-    if (id) {
+    if (id && categories.length > 0) {
       loadProductData();
     }
-  }, [id]);
+  }, [id, categories]);
 
   // Update fields when category changes
   useEffect(() => {
@@ -95,8 +95,12 @@ const EditProduct: React.FC = () => {
       if (response.success && response.data) {
         const product = response.data;
         
-        // Set category
-        setSelectedCategory(product.categoryId || 'general');
+        // Set category - match by ID first, then by slug if it's a slug-based categoryId
+        const productCategoryId = product.categoryId || 'general';
+        const matchedCategory = categories.find(c => 
+          c.id === productCategoryId || c.slug === productCategoryId
+        );
+        setSelectedCategory(matchedCategory?.id || productCategoryId);
         
         // Parse images
         let images: string[] = [];
