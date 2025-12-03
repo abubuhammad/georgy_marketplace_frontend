@@ -7,3 +7,5 @@ export { default as Analytics } from './Analytics';
 export { default as RevenueSharing } from './RevenueSharing';
 export { default as AdminProfile } from './AdminProfile';
 export { default as SellerManagement } from './SellerManagement';
+export { default as DeliverySettings } from './DeliverySettings';
+export { default as AdminSettings } from './AdminSettings';

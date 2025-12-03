@@ -1,8 +1,5 @@
 import { apiClient, ApiResponse } from '@/lib/api-client';
 
-// Environment setup - prefer backend API unless developer enables mocks
-const isDevMode = (import.meta.env.VITE_USE_MOCKS === 'true');
-
 export interface PlatformStats {
   totalUsers: number;
   totalOrders: number;
@@ -25,84 +22,72 @@ class AdminService {
   // Get platform statistics from backend API
   async getPlatformStats(): Promise<PlatformStats> {
     try {
-      if (!isDevMode) {
-        try {
-          const resp = await apiClient.get<ApiResponse<PlatformStats>>('/admin/overview');
-          if (resp && (resp as ApiResponse<PlatformStats>).success && (resp as ApiResponse<PlatformStats>).data) {
-            console.log('📊 Fetched admin overview from backend API');
-            return (resp as ApiResponse<PlatformStats>).data as PlatformStats;
-          }
-          console.warn('Admin overview API returned no data, falling back to mock');
-        } catch (apiErr) {
-          console.error('Admin overview API call failed, falling back to mock', apiErr);
-        }
+      const resp = await apiClient.get<any>('/admin/overview');
+      
+      // Handle different response formats
+      if (resp?.success && resp?.data) {
+        console.log('📊 Fetched admin overview from backend API');
+        return {
+          totalUsers: resp.data.totalUsers || 0,
+          totalOrders: resp.data.totalOrders || 0,
+          totalRevenue: resp.data.totalRevenue || 0,
+          activeListings: resp.data.activeListings || 0,
+          pendingVerifications: resp.data.pendingVerifications || 0,
+          reportedIssues: resp.data.reportedIssues || 0
+        };
+      }
+      
+      // Direct response format
+      if (resp?.totalUsers !== undefined) {
+        console.log('📊 Fetched admin overview (direct format)');
+        return {
+          totalUsers: resp.totalUsers || 0,
+          totalOrders: resp.totalOrders || 0,
+          totalRevenue: resp.totalRevenue || 0,
+          activeListings: resp.activeListings || 0,
+          pendingVerifications: resp.pendingVerifications || 0,
+          reportedIssues: resp.reportedIssues || 0
+        };
       }
 
-      // Return mock stats for development/fallback
-      return {
-        totalUsers: 15234,
-        totalOrders: 8956,
-        totalRevenue: 2850000000,
-        activeListings: 8956,
-        pendingVerifications: 45,
-        reportedIssues: 20
-      };
+      console.warn('Admin overview API returned unexpected format');
+      return this.getEmptyStats();
     } catch (error) {
       console.error('Error fetching platform stats:', error);
-      return {
-        totalUsers: 0,
-        totalOrders: 0,
-        totalRevenue: 0,
-        activeListings: 0,
-        pendingVerifications: 0,
-        reportedIssues: 0
-      };
+      return this.getEmptyStats();
     }
   }
+  
+  private getEmptyStats(): PlatformStats {
+    return {
+      totalUsers: 0,
+      totalOrders: 0,
+      totalRevenue: 0,
+      activeListings: 0,
+      pendingVerifications: 0,
+      reportedIssues: 0
+    };
+  }
 
-  // Get recent platform activities
+  // Get recent platform activities from activity log
   async getRecentActivities(limit: number = 10): Promise<ActivityItem[]> {
     try {
-      if (!isDevMode) {
-        try {
-          const resp = await apiClient.get<ApiResponse<ActivityItem[]>>(`/admin/activities?limit=${limit}`);
-          if (resp && (resp as ApiResponse<ActivityItem[]>).success && (resp as ApiResponse<ActivityItem[]>).data) {
-            console.log('📋 Fetched admin activities from backend API');
-            return (resp as ApiResponse<ActivityItem[]>).data as ActivityItem[];
-          }
-          console.warn('Admin activities API returned no data, falling back to mock');
-        } catch (apiErr) {
-          console.error('Admin activities API call failed, falling back to mock', apiErr);
-        }
+      // Try to get recent orders as activity
+      const ordersResp = await apiClient.get<any>('/admin/dashboard/stats');
+      
+      if (ordersResp?.recentOrders && Array.isArray(ordersResp.recentOrders)) {
+        return ordersResp.recentOrders.slice(0, limit).map((order: any, index: number) => ({
+          id: order.id || `activity-${index}`,
+          type: 'order_placed' as const,
+          description: `Order placed${order.buyer ? ` by ${order.buyer.firstName} ${order.buyer.lastName}` : ''}${order.product ? ` for ${order.product.title}` : ''}`,
+          timestamp: this.formatTimestamp(order.createdAt || new Date().toISOString()),
+          status: 'success' as const,
+          metadata: { orderId: order.id }
+        }));
       }
-
-      // Return mock activities for development/fallback
-      return [
-        {
-          id: 'activity-1',
-          type: 'user_registration',
-          description: 'New user registered: John Doe',
-          timestamp: this.formatTimestamp(new Date().toISOString()),
-          status: 'info',
-          metadata: { userId: 'user-1' }
-        },
-        {
-          id: 'activity-2',
-          type: 'order_placed',
-          description: 'Order #12345 placed for ₦5,000',
-          timestamp: this.formatTimestamp(new Date(Date.now() - 3600000).toISOString()),
-          status: 'success',
-          metadata: { orderId: 'order-1', amount: 5000 }
-        },
-        {
-          id: 'activity-3',
-          type: 'listing_created',
-          description: 'New listing: iPhone 14 Pro Max',
-          timestamp: this.formatTimestamp(new Date(Date.now() - 7200000).toISOString()),
-          status: 'info',
-          metadata: { listingId: 'listing-1' }
-        }
-      ].slice(0, limit);
+      
+      // Return empty array if no data
+      return [];
     } catch (error) {
       console.error('Error fetching recent activities:', error);
       return [];
@@ -112,28 +97,29 @@ class AdminService {
   // Get pending actions that require admin attention
   async getPendingActions(): Promise<{ pendingVerifications: number; reportedIssues: number; paymentDisputes: number }> {
     try {
-      if (!isDevMode) {
-        try {
-          const resp = await apiClient.get<ApiResponse<{ pendingVerifications: number; reportedIssues: number; paymentDisputes: number }>>('/admin/pending-actions');
-          if (resp && (resp as ApiResponse<{ pendingVerifications: number; reportedIssues: number; paymentDisputes: number }>).success) {
-            console.log('⚠️ Fetched pending actions from backend API');
-            return (resp as ApiResponse<{ pendingVerifications: number; reportedIssues: number; paymentDisputes: number }>).data || {
-              pendingVerifications: 0,
-              reportedIssues: 0,
-              paymentDisputes: 0
-            };
-          }
-          console.warn('Pending actions API returned no data, falling back to mock');
-        } catch (apiErr) {
-          console.error('Pending actions API call failed, falling back to mock', apiErr);
-        }
+      // Get pending counts from moderation stats
+      const resp = await apiClient.get<any>('/admin/moderation/stats');
+      
+      if (resp?.success && resp?.data?.pending) {
+        return {
+          pendingVerifications: resp.data.pending.accounts || 0,
+          reportedIssues: resp.data.pending.total || 0,
+          paymentDisputes: 0
+        };
       }
-
-      // Return mock pending actions for development/fallback
+      
+      if (resp?.pending) {
+        return {
+          pendingVerifications: resp.pending.accounts || 0,
+          reportedIssues: resp.pending.total || 0,
+          paymentDisputes: 0
+        };
+      }
+      
       return {
-        pendingVerifications: 3,
-        reportedIssues: 2,
-        paymentDisputes: 1
+        pendingVerifications: 0,
+        reportedIssues: 0,
+        paymentDisputes: 0
       };
     } catch (error) {
       console.error('Error fetching pending actions:', error);
